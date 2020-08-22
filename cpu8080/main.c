@@ -831,15 +831,16 @@ static const uint8_t* read_file(const char* path, uint32_t* buffer_size)
 
 static void write_program_to_file(const char* path)
 {
-	int instructions = 6;
+	int instructions = 7;
 	uint32_t size = sizeof(uint8_t) * instructions;
 	uint8_t* data = malloc(size);
-	*(data + 0) = 0x00;
-	*(data + 1) = 0x47;
-	*(data + 2) = 0x46;
-	*(data + 3) = 0x81;
-	*(data + 4) = 0x04;
-	*(data + 5) = 0x76;
+	*(data + 0) = NOP;
+	*(data + 1) = MVI_A_D8;
+	*(data + 2) = 0x01;
+	*(data + 3) = PRINT_A;
+	*(data + 4) = RRC;
+	*(data + 5) = JMP;
+	*(data + 6) = 0x03;
 	FILE* file = fopen(path, "wb");
 	if (file == NULL)
 	{
@@ -853,11 +854,23 @@ static void write_program_to_file(const char* path)
 int main(int argc, char** argv)
 {
 	cpu8080 cpu;
-	cpu8080_init(&cpu);	
+	cpu8080_init(&cpu);
 	write_program_to_file("main.obj");
-	uint32_t size = 0;
-	const uint8_t* buffer = read_file("space invaders/invaders.h", &size);
-	cpu8080_load_program(&cpu, buffer, size, 0);
+	uint32_t h_size = 0;
+	uint32_t g_size = 0;
+	uint32_t f_size = 0;
+	uint32_t e_size = 0;
+	//const uint8_t* buffer = read_file("main.obj", &size);
+	//const uint8_t* buffer = read_file("space invaders/invaders.h", &size);
+	const uint8_t* h = read_file("space invaders/invaders.h", &h_size);
+	const uint8_t* g = read_file("space invaders/invaders.g", &g_size);
+	const uint8_t* f = read_file("space invaders/invaders.f", &f_size);
+	const uint8_t* e = read_file("space invaders/invaders.e", &e_size);
+	cpu8080_load_program(&cpu, h, h_size, 0);
+	cpu8080_load_program(&cpu, g, g_size, 0x800);
+	cpu8080_load_program(&cpu, f, f_size, 0x1000);
+	cpu8080_load_program(&cpu, e, e_size, 0x1800);
+	cpu8080_disassembly(cpu.memory, 0x1800);
 	cpu8080_run(&cpu);
 	getchar();
 	return 0;
