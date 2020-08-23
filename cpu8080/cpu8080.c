@@ -24,6 +24,35 @@ void cpu8080_load_program(cpu8080* cpu, const uint8_t* buffer, int size, uint32_
 	memcpy(cpu->memory + offset, buffer, size);
 }
 
+static inline int32_t parity(int x, int size)
+{
+	int i;
+	int p = 0;
+	x = (x & ((1 << size) - 1));
+	for (i = 0; i < size; i++)
+	{
+		if (x & 0x1) p++;
+		x = x >> 1;
+	}
+	return (0 == (p & 0x1));
+}
+
+static inline void set_logic_flags(cpu8080* cpu)
+{
+	cpu->cf = cpu->a = 0;
+	cpu->zf = (cpu->a == 0);
+	cpu->sf = (0x80 == (cpu->a & 0x80));
+	cpu->pf = parity(cpu->a, 8);
+}
+
+static inline void set_arithmetic_flags(cpu8080* cpu, uint16_t res)
+{
+	cpu->cf = res > 0xff;
+	cpu->zf = (res & 0xff) == 0;
+	cpu->sf = (0x80 == (res & 0x80));
+	cpu->pf = parity(res & 0xff, 8);
+}
+
 void cpu8080_emulate(cpu8080* cpu)
 {
 	uint8_t* opcode = &cpu->memory[cpu->pc];
@@ -33,11 +62,6 @@ void cpu8080_emulate(cpu8080* cpu)
 		{
 			cpu->pc++;
 		} break;
-		case MVI_A_D8:
-		{
-			cpu->a = opcode[1];
-			cpu->pc += 2;
-		} break;
 		case MVI_B_D8:
 		{
 			cpu->b = opcode[1];
@@ -45,7 +69,12 @@ void cpu8080_emulate(cpu8080* cpu)
 		} break;
 		case DCR_B:
 		{
-			cpu->b -= 1;
+			uint8_t res = cpu->b - 1;
+			cpu->zf = (res == 0);
+			cpu->sf = (0x80 == (res & 0x80));
+			cpu->pf = parity(res, 8);
+			cpu->b = res;
+			cpu->pc++;
 		} break;
 		case MVI_C_D8:
 		{
@@ -54,7 +83,11 @@ void cpu8080_emulate(cpu8080* cpu)
 		} break;
 		case DCR_C:
 		{
-			cpu->c -= 1;
+			uint8_t res = cpu->c - 1;
+			cpu->zf = (res == 0);
+			cpu->sf = (0x80 == (res & 0x80));
+			cpu->pf = parity(res, 8);
+			cpu->c = res;
 			cpu->pc++;
 		} break;
 		case RRC:
@@ -74,40 +107,282 @@ void cpu8080_emulate(cpu8080* cpu)
 		{
 			cpu->b = opcode[2];
 			cpu->c = opcode[1];
-			cpu->pc += 2;
+			cpu->pc += 3;
 		} break;
 		case INX_D:
 		{
-			uint16_t bc = (cpu->e << 8) | cpu->d;
-			bc += 1;
-			cpu->d = bc >> 8;
-			cpu->e = bc & 0xFF;
+			cpu->e++;
+			if (cpu->e == 0)
+				cpu->d++;
 			cpu->pc++;
 		} break;
 		case DAD_D:
 		{
-			uint16_t de = (cpu->e << 8) | cpu->d;
-			uint16_t hl = (cpu->l << 8) | cpu->h;
+			uint16_t de = (cpu->d << 8) | cpu->e;
+			uint16_t hl = (cpu->h << 8) | cpu->l;
 			de += hl;
 			cpu->d = de >> 8;
 			cpu->e = de & 0xFF;
 			cpu->pc++;
 		} break;
-
-
-		case PRINT_A:
+		case LDAX_D:
 		{
-			printf("%d\n", cpu->a);
+			uint16_t addr = (cpu->d << 8) | cpu->e;
+			cpu->a = cpu->memory[addr];
 			cpu->pc++;
 		} break;
-		case ADD_A:
+		case LXI_H_D16:
 		{
-			cpu->a += cpu->a;
+			cpu->h = opcode[2];
+			cpu->l = opcode[1];
+			cpu->pc += 3;
+		} break;
+		case INX_H:
+		{
+			cpu->l++;
+			if (cpu->l == 0)
+				cpu->h++;
 			cpu->pc++;
 		} break;
-		case JMP:
+		case MVI_H_D8:
 		{
+			cpu->h = opcode[1];
+			cpu->pc += 2;
+		} break;
+		case DAD_H:
+		{
+			uint16_t hl = (cpu->h << 8) | cpu->l;
+			hl += hl;
+			cpu->h = hl >> 8;
+			cpu->l = hl & 0xFF;
+			cpu->pc++;
+		} break;
+		case LXI_SP_D16:
+		{
+			cpu->sp = (opcode[2] << 8) | opcode[1];
+			cpu->pc += 3;
+		} break;
+		case STA_addr:
+		{
+			uint16_t addr = (opcode[2] << 8) | (opcode[1]);
+			cpu->memory[addr] = cpu->a;
+			cpu->pc += 3;
+		} break;
+		case MVI_M_D8:
+		{
+			uint16_t addr = (cpu->h << 8) | cpu->l;
+			cpu->memory[addr] = opcode[1];
+			cpu->pc += 2;
+		} break;	
+		case LDA_addr:
+		{
+			uint16_t addr = (opcode[2] << 8) | opcode[1];
+			cpu->a = cpu->memory[addr];
+			cpu->pc += 3;
+		} break;
+		case MVI_A_D8:
+		{
+			cpu->a = opcode[1];
+			cpu->pc += 2;
+		} break;
+		case MOV_D_M:
+		{
+			uint16_t addr = (cpu->h << 8) | cpu->l;
+			cpu->d = cpu->memory[addr];
+			cpu->pc += 1;
+		} break;
+		case MOV_E_M:
+		{
+			uint16_t addr = (cpu->h << 8) | cpu->l;
+			cpu->e = cpu->memory[addr];
+			cpu->pc += 1;
+		} break;
+		case MOV_H_M:
+		{
+			uint16_t addr = (cpu->h << 8) | cpu->l;
+			cpu->h = cpu->memory[addr];
+			cpu->pc += 1;
+		} break;
+		case MOV_L_A:
+		{
+			cpu->l = cpu->a;
+			cpu->pc += 1;
+		} break;
+		case MOV_M_A:
+		{
+			uint16_t addr = (cpu->h << 8) | cpu->l;
+			cpu->memory[addr] = cpu->a;
+			cpu->pc += 1;
+		} break;
+		case MOV_A_D:
+		{
+			cpu->a = cpu->d;
+			cpu->pc += 1;
+		} break;
+		case MOV_A_E:
+		{
+			cpu->a = cpu->e;
+			cpu->pc += 1;
+		} break;
+		case MOV_A_H:
+		{
+			cpu->a = cpu->h;
+			cpu->pc += 1;
+		} break;
+		case MOV_A_M:
+		{
+			uint16_t addr = (cpu->h << 8) | (cpu->l);
+			cpu->a = cpu->memory[addr];
+			cpu->pc += 1;
+		} break;
+		case ANA_A:
+		{
+			cpu->a &= cpu->a;
+			set_logic_flags(cpu);
+			cpu->pc++;
+		} break;
+		case XRA_A:
+		{
+			cpu->a ^= cpu->a;
+			set_logic_flags(cpu);
+			cpu->pc++;
+		} break;
+		case POP_B:
+		{
+			cpu->c = cpu->memory[cpu->sp];
+			cpu->b = cpu->memory[cpu->sp + 1];
+			cpu->sp += 2;
+			cpu->pc++;
+		} break;
+		case JNZ_addr:
+		{
+			if (cpu->zf != 0)
+				cpu->pc = (opcode[2] << 8) | opcode[1];
+			else
+				cpu->pc += 2;
+		} break;
+		case JMP_addr:
+		{
+			cpu->pc = (opcode[2] << 8) | opcode[1];
+		} break;
+		case PUSH_B:
+		{
+			cpu->memory[cpu->sp - 1] = cpu->b;
+			cpu->memory[cpu->sp - 2] = cpu->c;
+			cpu->sp -= 2;
+			cpu->pc++;
+		} break;
+		case ADI_D8:
+		{
+			uint16_t x = (uint16_t)cpu->a + (uint16_t)opcode[1];
+			cpu->zf = ((x & 0xff) == 0);
+			cpu->sf = ((x & 0x80) != 0);
+			cpu->cf = (x > 0xff);
+			cpu->pf = parity(x & 0xff, 8);
+			cpu->a = x & 0xff;
+			cpu->pc += 2;
+		} break;
+		case CALL_addr:
+		{
+			cpu->memory[cpu->sp - 1] = cpu->pc;
+			cpu->memory[cpu->sp - 2] = cpu->pc;
+			cpu->sp -= 2;
 			cpu->pc = opcode[1];
+		} break;
+		case POP_D:
+		{
+			cpu->l = cpu->memory[cpu->sp];
+			cpu->h = cpu->memory[cpu->sp + 1];
+			cpu->sp += 2;
+			cpu->pc++;
+		} break;
+		case OUT_D8:
+		{
+			cpu->pc += 2;
+		} break;
+		case PUSH_D:
+		{
+			cpu->memory[cpu->sp - 1] = cpu->d;
+			cpu->memory[cpu->sp - 2] = cpu->e;
+			cpu->sp -= 2;
+			cpu->pc++;
+		} break;
+		case POP_H:
+		{
+			cpu->l = cpu->memory[cpu->sp];
+			cpu->h = cpu->memory[cpu->sp + 1];
+			cpu->sp += 2;
+			cpu->pc++;
+		} break;
+		case PUSH_H:
+		{
+			cpu->memory[cpu->sp - 1] = cpu->h;
+			cpu->memory[cpu->sp - 2] = cpu->l;
+			cpu->sp -= 2;
+			cpu->pc++;
+		} break;
+		case ANI_D8:
+		{
+			cpu->a &= opcode[1];
+			set_logic_flags(cpu);
+			cpu->pc += 2;
+		} break;
+		case XCHG:
+		{
+			uint16_t de = (cpu->d << 8) | (cpu->e);
+			uint16_t hl = (cpu->h << 8) | (cpu->l);
+			cpu->h = hl >> 8;
+			cpu->l = hl & 0xFF;
+			cpu->d = de >> 8;
+			cpu->e = de & 0xFF;
+			cpu->pc++;
+		} break;
+		case POP_PSW:
+		{
+			cpu->a = cpu->memory[cpu->sp + 1];
+			uint8_t psw = cpu->memory[cpu->sp];
+			cpu->zf = 0x01  == (psw & 0x01);
+			cpu->sf = 0x02  == (psw & 0x02);
+			cpu->pf = 0x04  == (psw & 0x04);
+			cpu->cf = 0x05  == (psw & 0x05);
+			cpu->ac = 0x010 == (psw & 0x010);
+			cpu->sp += 2;
+			cpu->pc++;
+		} break;
+		case PUSH_PSW:
+		{
+			cpu->memory[cpu->sp - 1] = cpu->a;
+			uint8_t psw = cpu->zf | cpu->sf << 1 | cpu->pf << 2 | cpu->cf << 3 | cpu->ac << 4 ;
+			cpu->memory[cpu->sp - 2] = psw;
+			cpu->sp -= 2;
+			cpu->pc++;
+		} break;
+		case DI:
+		{
+			cpu->enable_int = false;
+			cpu->pc++;
+		} break;
+		case EI:
+		{
+			cpu->enable_int = true;
+			cpu->pc++;
+		} break;
+		case CPI_D8:
+		{
+			uint8_t x = cpu->a - opcode[1];
+			cpu->zf = (x == 0);
+			cpu->sf = (0x80 == (x & 0x80));
+			cpu->pf = parity(x, 8);
+			cpu->cf = x > 0;
+			cpu->pc += 2;
+		} break;
+
+
+
+		case PRINT_B:
+		{
+			printf("%d\n", cpu->b);
+			cpu->pc++;
 		} break;
 		case HLT:
 		{
@@ -121,6 +396,7 @@ void cpu8080_run(cpu8080* cpu)
 	while (!cpu->halted)
 	{
 		cpu8080_emulate(cpu);
+		//printf("%d\n", cpu->pc);
 	}
 }
 
