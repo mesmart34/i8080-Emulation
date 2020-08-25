@@ -3,8 +3,10 @@
   <ItemGroup>
     <ClCompile Include="main.c" />
     <ClCompile Include="cpu8080.c" />
+    <ClCompile Include="compiler.c" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="cpu8080.h" />
+    <ClInclude Include="compiler.h" />
   </ItemGroup>
 </Project>

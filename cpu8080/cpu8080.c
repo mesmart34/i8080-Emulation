@@ -39,7 +39,7 @@ static inline int32_t parity(int x, int size)
 
 static inline void set_logic_flags(cpu8080* cpu)
 {
-	cpu->cf = cpu->a = 0;
+	cpu->cf = cpu->ac = 0;
 	cpu->zf = (cpu->a == 0);
 	cpu->sf = (0x80 == (cpu->a & 0x80));
 	cpu->pf = parity(cpu->a, 8);
@@ -53,27 +53,155 @@ static inline void set_arithmetic_flags(cpu8080* cpu, uint16_t res)
 	cpu->pf = parity(res & 0xff, 8);
 }
 
+static void debug(cpu8080* cpu)
+{
+	cpu8080_disassembly(cpu->memory, cpu->pc);
+	printf("\tA = %04X, B = %04X, C = %04X, D = %04X, E = %04X\n",
+		cpu->a, cpu->b, cpu->c, cpu->d, cpu->e);
+}
+
+static inline void cpu8080_set_bc(cpu8080* cpu, uint16_t value)
+{
+	cpu->b = value >> 8;
+	cpu->c = value & 0xff;
+}
+
+static inline void cpu8080_set_hl(cpu8080* cpu, uint16_t value)
+{
+	cpu->h = value >> 8;
+	cpu->l = value & 0xff;
+}
+
+static inline void cpu8080_set_de(cpu8080* cpu, uint16_t value)
+{
+	cpu->d = value >> 8;
+	cpu->e = value & 0xff;
+}
+
+static inline uint16_t cpu8080_get_hl(cpu8080* cpu)
+{
+	return (cpu->h << 8) | cpu->l;
+}
+
+static inline uint16_t cpu8080_get_bc(cpu8080* cpu)
+{
+	return (cpu->b << 8) | cpu->c;
+}
+
+static inline uint16_t cpu8080_get_de(cpu8080* cpu)
+{
+	return (cpu->d << 8) | cpu->e;
+}
+
+static inline void cpu8080_push_stack(cpu8080* cpu, uint16_t value)
+{
+	cpu->memory[cpu->sp - 1] = (value >> 8) & 0xff;
+	cpu->memory[cpu->sp - 2] = value & 0xff;
+	cpu->sp -= 2;
+}
+
+static inline void cpu8080_jump(cpu8080* cpu, uint16_t addr)
+{
+	cpu->pc = addr;
+}
+
+static inline void cpu8080_call(cpu8080* cpu, uint16_t addr)
+{
+	cpu8080_push_stack(cpu, cpu->pc + 3);
+	cpu8080_jump(cpu, addr);
+}
+
+static inline void cpu8080_return(cpu8080* cpu)
+{
+	cpu->pc = cpu->memory[cpu->sp] | (cpu->memory[cpu->sp + 1] << 8);
+	cpu->sp += 2;
+}
+
+static inline void cpu8080_add(cpu8080* cpu, uint8_t value)
+{
+	uint16_t answer = (uint16_t)cpu->a + (uint16_t)value;
+	cpu->zf = ((answer & 0xff) == 0);
+	cpu->sf = ((answer & 0x80) != 0);
+	cpu->cf = (answer > 0xff);
+	cpu->pf = parity(answer & 0xff, 8);
+	cpu->a = answer & 0xff;
+	cpu->pc++;
+}
+
+static inline void cpu8080_sub(cpu8080* cpu, uint8_t value)
+{
+	cpu8080_add(cpu, ~value);
+}
+
+static inline uint8_t cpu8080_rb(cpu8080* cpu, uint16_t addr)
+{
+	return cpu->memory[addr];
+}
+
+static inline uint16_t cpu8080_rw(cpu8080* cpu, uint16_t addr)
+{
+	return (cpu8080_rb(cpu, addr + 1) << 8) | cpu8080_rb(cpu, addr);
+}
+
+static inline void cpu8080_wb(cpu8080* cpu, uint8_t value, uint16_t addr)
+{
+	cpu->memory[addr] = value;
+}
+
+static inline void cpu8080_ww(cpu8080* cpu, uint16_t value, uint16_t addr)
+{
+	cpu->memory[addr + 1] = value >> 8;
+	cpu->memory[addr] = value & 0xff;
+}
+
+static inline uint8_t cpu8080_dec(cpu8080* cpu, uint8_t reg)
+{
+	uint8_t res = reg - 1;
+	cpu->zf = (res == 0);
+	cpu->sf = (0x80 == (res & 0x80));
+	cpu->pf = parity(res, 8);
+	cpu->ac = !((res & 0xF) == 0xF);
+	return res;
+}
+
+static inline void cpu8080_sbb(cpu8080* cpu, uint8_t reg)
+{
+	uint16_t answer = (uint16_t)cpu->a + ~reg;
+	cpu->zf = ((answer & 0xff) == 0);
+	cpu->sf = ((answer & 0x80) != 0);
+	cpu->cf = !cpu->cf;
+	cpu->pf = parity(answer & 0xff, 8);
+	cpu->a = answer & 0xff;
+}
+
 void cpu8080_emulate(cpu8080* cpu)
 {
 	uint8_t* opcode = &cpu->memory[cpu->pc];
+	debug(cpu);
 	switch (*opcode)
 	{
 		case NOP:
 		{
 			cpu->pc++;
 		} break;
+		case LXI_B_D16:
+		{
+			cpu8080_set_bc(cpu, (opcode[2] << 8) | opcode[1]);
+			cpu->pc += 3;
+		} break;
 		case MVI_B_D8:
 		{
 			cpu->b = opcode[1];
 			cpu->pc += 2;
 		} break;
+		case DCR_A:
+		{
+			cpu->a = cpu8080_dec(cpu, cpu->a);
+			cpu->pc++;
+		} break;
 		case DCR_B:
 		{
-			uint8_t res = cpu->b - 1;
-			cpu->zf = (res == 0);
-			cpu->sf = (0x80 == (res & 0x80));
-			cpu->pf = parity(res, 8);
-			cpu->b = res;
+			cpu->b = cpu8080_dec(cpu, cpu->b);
 			cpu->pc++;
 		} break;
 		case MVI_C_D8:
@@ -83,11 +211,7 @@ void cpu8080_emulate(cpu8080* cpu)
 		} break;
 		case DCR_C:
 		{
-			uint8_t res = cpu->c - 1;
-			cpu->zf = (res == 0);
-			cpu->sf = (0x80 == (res & 0x80));
-			cpu->pf = parity(res, 8);
-			cpu->c = res;
+			cpu->c = cpu8080_dec(cpu, cpu->c);
 			cpu->pc++;
 		} break;
 		case RRC:
@@ -105,36 +229,40 @@ void cpu8080_emulate(cpu8080* cpu)
 		} break;
 		case LXI_D_D16:
 		{
-			cpu->b = opcode[2];
-			cpu->c = opcode[1];
+			cpu8080_set_de(cpu, (opcode[2] << 8) | opcode[1]);
 			cpu->pc += 3;
 		} break;
 		case INX_D:
 		{
 			cpu->e++;
+			uint8_t res = cpu->d + 1;
+			cpu->ac = (res & 0xF) == 0;
 			if (cpu->e == 0)
-				cpu->d++;
+				cpu->d = res;
 			cpu->pc++;
 		} break;
 		case DAD_D:
 		{
-			uint16_t de = (cpu->d << 8) | cpu->e;
-			uint16_t hl = (cpu->h << 8) | cpu->l;
-			de += hl;
-			cpu->d = de >> 8;
-			cpu->e = de & 0xFF;
+			uint16_t de = cpu8080_get_de(cpu);
+			uint16_t hl = cpu8080_get_hl(cpu);
+			cpu8080_set_de(cpu, de + hl);
+			cpu->pc++;
+		} break;
+		case DAD_B:
+		{
+			uint16_t bc = cpu8080_get_bc(cpu);
+			uint16_t hl = cpu8080_get_hl(cpu);
+			cpu8080_set_bc(cpu, bc + hl);
 			cpu->pc++;
 		} break;
 		case LDAX_D:
 		{
-			uint16_t addr = (cpu->d << 8) | cpu->e;
-			cpu->a = cpu->memory[addr];
+			cpu->a = cpu8080_rb(cpu, cpu8080_get_de(cpu));
 			cpu->pc++;
 		} break;
 		case LXI_H_D16:
 		{
-			cpu->h = opcode[2];
-			cpu->l = opcode[1];
+			cpu8080_set_hl(cpu, opcode[2] << 8 | opcode[1]);
 			cpu->pc += 3;
 		} break;
 		case INX_H:
@@ -151,10 +279,8 @@ void cpu8080_emulate(cpu8080* cpu)
 		} break;
 		case DAD_H:
 		{
-			uint16_t hl = (cpu->h << 8) | cpu->l;
-			hl += hl;
-			cpu->h = hl >> 8;
-			cpu->l = hl & 0xFF;
+			uint16_t hl = cpu8080_get_hl(cpu);
+			cpu8080_set_hl(cpu, hl + hl);
 			cpu->pc++;
 		} break;
 		case LXI_SP_D16:
@@ -164,20 +290,17 @@ void cpu8080_emulate(cpu8080* cpu)
 		} break;
 		case STA_addr:
 		{
-			uint16_t addr = (opcode[2] << 8) | (opcode[1]);
-			cpu->memory[addr] = cpu->a;
+			cpu8080_wb(cpu, cpu->a, (opcode[2] << 8) | (opcode[1]));
 			cpu->pc += 3;
 		} break;
 		case MVI_M_D8:
 		{
-			uint16_t addr = (cpu->h << 8) | cpu->l;
-			cpu->memory[addr] = opcode[1];
+			cpu8080_wb(cpu, opcode[1], cpu8080_get_hl(cpu));
 			cpu->pc += 2;
 		} break;	
 		case LDA_addr:
 		{
-			uint16_t addr = (opcode[2] << 8) | opcode[1];
-			cpu->a = cpu->memory[addr];
+			cpu->a = cpu8080_rb(cpu, (opcode[2] << 8) | opcode[1]);
 			cpu->pc += 3;
 		} break;
 		case MVI_A_D8:
@@ -187,20 +310,17 @@ void cpu8080_emulate(cpu8080* cpu)
 		} break;
 		case MOV_D_M:
 		{
-			uint16_t addr = (cpu->h << 8) | cpu->l;
-			cpu->d = cpu->memory[addr];
+			cpu->d = cpu8080_rb(cpu, cpu8080_get_hl(cpu));
 			cpu->pc += 1;
 		} break;
 		case MOV_E_M:
 		{
-			uint16_t addr = (cpu->h << 8) | cpu->l;
-			cpu->e = cpu->memory[addr];
+			cpu->e = cpu8080_rb(cpu, cpu8080_get_hl(cpu));
 			cpu->pc += 1;
 		} break;
 		case MOV_H_M:
 		{
-			uint16_t addr = (cpu->h << 8) | cpu->l;
-			cpu->h = cpu->memory[addr];
+			cpu->h = cpu8080_rb(cpu, cpu8080_get_hl(cpu));
 			cpu->pc += 1;
 		} break;
 		case MOV_L_A:
@@ -210,8 +330,12 @@ void cpu8080_emulate(cpu8080* cpu)
 		} break;
 		case MOV_M_A:
 		{
-			uint16_t addr = (cpu->h << 8) | cpu->l;
-			cpu->memory[addr] = cpu->a;
+			cpu8080_wb(cpu, cpu->a, cpu8080_get_hl(cpu));
+			cpu->pc += 1;
+		} break;
+		case MOV_A_B:
+		{
+			cpu->a = cpu->b;
 			cpu->pc += 1;
 		} break;
 		case MOV_A_D:
@@ -231,8 +355,7 @@ void cpu8080_emulate(cpu8080* cpu)
 		} break;
 		case MOV_A_M:
 		{
-			uint16_t addr = (cpu->h << 8) | (cpu->l);
-			cpu->a = cpu->memory[addr];
+			cpu->a = cpu8080_rb(cpu, cpu8080_get_hl(cpu));
 			cpu->pc += 1;
 		} break;
 		case ANA_A:
@@ -249,50 +372,49 @@ void cpu8080_emulate(cpu8080* cpu)
 		} break;
 		case POP_B:
 		{
-			cpu->c = cpu->memory[cpu->sp];
-			cpu->b = cpu->memory[cpu->sp + 1];
+			cpu8080_set_bc(cpu, (cpu8080_rb(cpu, cpu->sp + 1) << 8) | cpu8080_rb(cpu, cpu->sp) << 8);
 			cpu->sp += 2;
 			cpu->pc++;
 		} break;
 		case JNZ_addr:
 		{
-			if (cpu->zf != 0)
-				cpu->pc = (opcode[2] << 8) | opcode[1];
+			if (cpu->zf == 0)
+				cpu8080_jump(cpu, ((opcode[2] << 8) | opcode[1]) + 1);
 			else
-				cpu->pc += 2;
+				cpu->pc += 3;
 		} break;
 		case JMP_addr:
 		{
-			cpu->pc = (opcode[2] << 8) | opcode[1];
+			cpu8080_jump(cpu, (opcode[2] << 8) | opcode[1]);
 		} break;
 		case PUSH_B:
 		{
-			cpu->memory[cpu->sp - 1] = cpu->b;
-			cpu->memory[cpu->sp - 2] = cpu->c;
-			cpu->sp -= 2;
+			cpu8080_push_stack(cpu, cpu8080_get_bc(cpu));
 			cpu->pc++;
 		} break;
 		case ADI_D8:
 		{
-			uint16_t x = (uint16_t)cpu->a + (uint16_t)opcode[1];
-			cpu->zf = ((x & 0xff) == 0);
-			cpu->sf = ((x & 0x80) != 0);
-			cpu->cf = (x > 0xff);
-			cpu->pf = parity(x & 0xff, 8);
-			cpu->a = x & 0xff;
+			cpu8080_add(cpu, (uint16_t)opcode[1]);
 			cpu->pc += 2;
+		} break;
+		case JZ_addr:
+		{
+			if (cpu->zf == 1)
+				cpu8080_jump(cpu, (opcode[2] << 8) | opcode[1]);
+			else
+				cpu->pc += 3;
 		} break;
 		case CALL_addr:
 		{
-			cpu->memory[cpu->sp - 1] = cpu->pc;
-			cpu->memory[cpu->sp - 2] = cpu->pc;
-			cpu->sp -= 2;
-			cpu->pc = opcode[1];
+			cpu8080_call(cpu, (opcode[2] << 8) | opcode[1]);
+		} break;
+		case RET:
+		{
+			cpu8080_return(cpu);
 		} break;
 		case POP_D:
 		{
-			cpu->l = cpu->memory[cpu->sp];
-			cpu->h = cpu->memory[cpu->sp + 1];
+			cpu8080_set_de(cpu, (cpu8080_rb(cpu, cpu->sp + 1) << 8) | cpu8080_rb(cpu, cpu->sp) << 8);
 			cpu->sp += 2;
 			cpu->pc++;
 		} break;
@@ -302,23 +424,18 @@ void cpu8080_emulate(cpu8080* cpu)
 		} break;
 		case PUSH_D:
 		{
-			cpu->memory[cpu->sp - 1] = cpu->d;
-			cpu->memory[cpu->sp - 2] = cpu->e;
-			cpu->sp -= 2;
+			cpu8080_push_stack(cpu, cpu8080_get_de(cpu));
 			cpu->pc++;
 		} break;
 		case POP_H:
 		{
-			cpu->l = cpu->memory[cpu->sp];
-			cpu->h = cpu->memory[cpu->sp + 1];
+			cpu8080_set_hl(cpu, (cpu8080_rb(cpu, cpu->sp + 1) << 8) | cpu8080_rb(cpu, cpu->sp) << 8);
 			cpu->sp += 2;
 			cpu->pc++;
 		} break;
 		case PUSH_H:
 		{
-			cpu->memory[cpu->sp - 1] = cpu->h;
-			cpu->memory[cpu->sp - 2] = cpu->l;
-			cpu->sp -= 2;
+			cpu8080_push_stack(cpu, cpu8080_get_hl(cpu));
 			cpu->pc++;
 		} break;
 		case ANI_D8:
@@ -329,18 +446,14 @@ void cpu8080_emulate(cpu8080* cpu)
 		} break;
 		case XCHG:
 		{
-			uint16_t de = (cpu->d << 8) | (cpu->e);
-			uint16_t hl = (cpu->h << 8) | (cpu->l);
-			cpu->h = hl >> 8;
-			cpu->l = hl & 0xFF;
-			cpu->d = de >> 8;
-			cpu->e = de & 0xFF;
+			cpu8080_set_hl(cpu, cpu8080_get_de(cpu));
+			cpu8080_set_de(cpu, cpu8080_get_hl(cpu));
 			cpu->pc++;
 		} break;
 		case POP_PSW:
 		{
-			cpu->a = cpu->memory[cpu->sp + 1];
-			uint8_t psw = cpu->memory[cpu->sp];
+			cpu->a = cpu8080_rb(cpu, cpu->sp + 1);
+			uint8_t psw = cpu8080_rb(cpu, cpu->sp);
 			cpu->zf = 0x01  == (psw & 0x01);
 			cpu->sf = 0x02  == (psw & 0x02);
 			cpu->pf = 0x04  == (psw & 0x04);
@@ -376,14 +489,206 @@ void cpu8080_emulate(cpu8080* cpu)
 			cpu->cf = x > 0;
 			cpu->pc += 2;
 		} break;
-
-
-
-		case PRINT_B:
+		case ADD_A:
 		{
-			printf("%d\n", cpu->b);
+			cpu8080_add(cpu, cpu->a);
 			cpu->pc++;
 		} break;
+		case ADD_B:
+		{
+			cpu8080_add(cpu, cpu->b);
+			cpu->pc++;
+		} break;
+		case ADD_C:
+		{
+			cpu8080_add(cpu, cpu->c);
+			cpu->pc++;
+		} break;
+		case ADD_D:
+		{
+			cpu8080_add(cpu, cpu->d);
+			cpu->pc++;
+		} break;
+		case ADD_E:
+		{
+			cpu8080_add(cpu, cpu->e);
+			cpu->pc++;
+		} break;
+		case ADD_H:
+		{
+			cpu8080_add(cpu, cpu->h);
+			cpu->pc++;
+		} break;
+		case SUB_A:
+		{
+			cpu8080_add(cpu, ~cpu->a);
+			cpu->pc++;
+		} break;
+		case SUB_B:
+		{
+			cpu8080_add(cpu, ~cpu->b);
+			cpu->pc++;
+		} break;
+		case SUB_C:
+		{
+			cpu8080_add(cpu, ~cpu->c);
+			cpu->pc++;
+		} break;
+		case SUB_D:
+		{
+			cpu8080_add(cpu, ~cpu->d);
+			cpu->pc++;
+		} break;
+		case SUB_E:
+		{
+			cpu8080_add(cpu, ~cpu->e);
+			cpu->pc++;
+		} break;
+		case SUB_H:
+		{
+			cpu8080_add(cpu, ~cpu->h);
+			cpu->pc++;
+		} break;
+		case SUB_L:
+		{
+			cpu8080_add(cpu, ~cpu->l); 
+			cpu->pc++;
+		} break;
+		case SBB_C:
+		{
+			cpu8080_sbb(cpu, cpu->c);
+			cpu->pc++;
+		} break;
+		case SBB_D:
+		{
+			cpu8080_sbb(cpu, cpu->d);
+			cpu->pc++;
+		} break;
+		case SBB_E:
+		{
+			cpu8080_sbb(cpu, cpu->d);
+			cpu->pc++;
+		} break;
+		case SBB_A:
+		{
+			cpu8080_sbb(cpu, cpu->a);
+			cpu->pc++;
+		} break;
+		case SBB_B:
+		{
+			cpu8080_sbb(cpu, cpu->b);
+			cpu->pc++;
+		} break;
+		case SBB_H:
+		{
+			cpu8080_sbb(cpu, cpu->h);
+			cpu->pc++;
+		} break;
+		case SBB_L:
+		{
+			cpu8080_sbb(cpu, cpu->l);
+			cpu->pc++;
+		} break;
+		case CZ:
+		{
+			if (cpu->zf == 1)
+				cpu8080_call(cpu, opcode[1] | (opcode[2] << 8));
+			else 
+				cpu->pc += 3;
+		} break;
+		case CNZ:
+		{
+			if (cpu->zf == 0)
+				cpu8080_call(cpu, opcode[1] | (opcode[2] << 8));
+			else
+				cpu->pc += 3;
+		} break;
+		case RC:
+		{
+			if (cpu->cf == 1)
+				cpu8080_return(cpu);
+			else
+				cpu->pc++;
+		} break;
+		case RNC:
+		{
+			if (cpu->cf == 0)
+				cpu8080_return(cpu);
+			else
+				cpu->pc++;
+		} break;
+		case CNC:
+		{
+			if (cpu->cf == 0)
+				cpu8080_call(cpu, opcode[1] | (opcode[2] << 8));
+			else
+				cpu->pc += 3;
+		} break;
+		case JC:
+		{
+			if (cpu->cf == 1)
+				cpu8080_jump(cpu, (opcode[2] << 8) | opcode[1]);
+			else
+				cpu->pc += 3;
+		} break;
+		case RPO:
+		{
+			if (cpu->pf == 0)
+				cpu8080_return(cpu);
+			else
+				cpu->pc++;
+		} break;
+		case INR_A:
+		{
+			cpu->a++;
+			cpu->pc++;
+		} break;
+		case INR_B:
+		{
+			cpu->b++;
+			cpu->pc++;
+		} break;
+		case INR_C:
+		{
+			cpu->c++;
+			cpu->pc++;
+		} break;
+		case INR_D:
+		{
+			cpu->d++;
+			cpu->pc++;
+		} break;
+		case INR_E:
+		{
+			cpu->e++;
+			cpu->pc++;
+		} break;
+		case INR_H:
+		{
+			cpu->h++;
+			cpu->pc++;
+		} break;
+		case INR_L:
+		{
+			cpu->l++;
+			cpu->pc++;
+		} break;
+		case RZ:
+		{
+			if (cpu->zf == 0)
+				cpu8080_return(cpu);
+			else
+				cpu->pc++;
+		} break;
+		case RNZ:
+		{
+			if (cpu->zf == 1)
+				cpu8080_return(cpu);
+			else
+				cpu->pc++;
+		} break;
+
+
 		case HLT:
 		{
 			cpu->halted = true;
@@ -393,24 +698,25 @@ void cpu8080_emulate(cpu8080* cpu)
 
 void cpu8080_run(cpu8080* cpu)
 {
+	//cpu->pc = 0x100;
 	while (!cpu->halted)
 	{
 		cpu8080_emulate(cpu);
-		//printf("%d\n", cpu->pc);
 	}
 }
 
 
-void cpu8080_disassembly(const char* buffer, int size)
+void cpu8080_disassembly(const char* buffer, int pc)
 {
-	uint64_t pc = 0;
-	while (pc < size)
+	//while (pc < size)
 	{
 		uint8_t* opcode = &buffer[pc];
 		printf("0x%04X:\t", pc);
 		switch (*opcode)
 		{
 		case 0x00:
+			printf("NOP");
+			break;
 		case 0x08:
 		case 0x10:
 		case 0x18:
@@ -419,12 +725,12 @@ void cpu8080_disassembly(const char* buffer, int size)
 		case 0xcb:
 		case 0xd9:
 		case 0xdd:
-		case 0xed:
 		case 0xfd:
-			printf("NOP");
+			
 			break;
 		case 0x01:
 			printf("LXI\tB, #$0x%02x%02x", opcode[2], opcode[1]);
+			pc += 2;
 			break;
 		case 0x02:
 			printf("STAX\tB");
@@ -440,6 +746,7 @@ void cpu8080_disassembly(const char* buffer, int size)
 			break;
 		case 0x06:
 			printf("MVI\tB, #$0x%02x", opcode[1]);
+			pc += 1;
 			break;
 		case 0x07:
 			printf("RLC");
@@ -461,12 +768,14 @@ void cpu8080_disassembly(const char* buffer, int size)
 			break;
 		case 0x0e:
 			printf("MVI\tC, #$0x%02x", opcode[1]);
+			pc += 1;
 			break;
 		case 0x0f:
 			printf("RRC");
 			break;
 		case 0x11:
 			printf("LXI\tD, #$0x%02x%02x", opcode[2], opcode[1]);
+			pc += 2;
 			break;
 		case 0x12:
 			printf("STAX\tD");
@@ -503,6 +812,7 @@ void cpu8080_disassembly(const char* buffer, int size)
 			break;
 		case 0x1e:
 			printf("MVI\tE, #$0x%02x", opcode[1]);
+			pc += 1;
 			break;
 		case 0x1f:
 			printf("RAR");
@@ -512,9 +822,11 @@ void cpu8080_disassembly(const char* buffer, int size)
 			break;
 		case 0x21:
 			printf("LXI\tH, #$0x%02x%02x", opcode[2], opcode[1]);
+			pc += 2;
 			break;
 		case 0x22:
 			printf("SHLD\t0x%02x%02x", opcode[2], opcode[1]);
+			pc += 2;
 			break;
 		case 0x23:
 			printf("INX\tH");
@@ -527,6 +839,7 @@ void cpu8080_disassembly(const char* buffer, int size)
 			break;
 		case 0x26:
 			printf("MVI\tH, #$0x%02x", opcode[1]);
+			pc += 1;
 			break;
 		case 0x27:
 			printf("DAA");
@@ -536,6 +849,7 @@ void cpu8080_disassembly(const char* buffer, int size)
 			break;
 		case 0x2a:
 			printf("LHLD\t 0x%02x%02x", opcode[2], opcode[1]);
+			pc += 2;
 			break;
 		case 0x2b:
 			printf("DCX\tH");
@@ -548,6 +862,7 @@ void cpu8080_disassembly(const char* buffer, int size)
 			break;
 		case 0x2e:
 			printf("MVI\tL, #$0x%02x", opcode[1]);
+			pc += 1;
 			break;
 		case 0x2f:
 			printf("CMA");
@@ -557,9 +872,11 @@ void cpu8080_disassembly(const char* buffer, int size)
 			break;
 		case 0x31:
 			printf("LXI\tSP, #$0x%02x%02x", opcode[2], opcode[1]);
+			pc += 2;
 			break;
 		case 0x32:
 			printf("STA\t0x%02x%02x", opcode[2], opcode[1]);
+			pc += 2;
 			break;
 		case 0x33:
 			printf("INX\tSP");
@@ -572,6 +889,7 @@ void cpu8080_disassembly(const char* buffer, int size)
 			break;
 		case 0x36:
 			printf("MVI\tM, #$0x%02x", opcode[1]);
+			pc += 1;
 			break;
 		case 0x37:
 			printf("STC");
@@ -581,6 +899,7 @@ void cpu8080_disassembly(const char* buffer, int size)
 			break;
 		case 0x3a:
 			printf("LDA\t0x%02x%02X", opcode[2], opcode[1]);
+			pc += 2;
 			break;
 		case 0x3b:
 			printf("DCX\tSP");
@@ -593,6 +912,7 @@ void cpu8080_disassembly(const char* buffer, int size)
 			break;
 		case 0x3e:
 			printf("MVI\tA, #$0x%02x", opcode[1]);
+			pc += 1;
 			break;
 		case 0x3f:
 			printf("CMC");
@@ -989,18 +1309,22 @@ void cpu8080_disassembly(const char* buffer, int size)
 			break;
 		case 0xc2:
 			printf("JNZ\t0x%02x%02X", opcode[2], opcode[1]);
+			pc += 2;
 			break;
 		case 0xc3:
 			printf("JMP\t0x%02x%02x", opcode[2], opcode[1]);
+			pc += 2;
 			break;
 		case 0xc4:
 			printf("CNZ\t0x%02x%02x", opcode[2], opcode[1]);
+			pc += 2;
 			break;
 		case 0xc5:
 			printf("PUSH\tB");
 			break;
 		case 0xc6:
 			printf("ADI\t#$0x%02x", opcode[1]);
+			pc += 1;
 			break;
 		case 0xc7:
 			printf("RST\t0");
@@ -1013,15 +1337,19 @@ void cpu8080_disassembly(const char* buffer, int size)
 			break;
 		case 0xca:
 			printf("JZ\t0x%02x%02x", opcode[2], opcode[1]);
+			pc += 2;
 			break;
 		case 0xcc:
 			printf("CZ\t0x%02x%02x", opcode[2], opcode[1]);
+			pc += 2;
 			break;
 		case 0xcd:
 			printf("CALL\t0x%02x%02x", opcode[2], opcode[1]);
+			pc += 2;
 			break;
 		case 0xce:
 			printf("ACI\t#$0x%02x", opcode[1]);
+			pc += 1;
 			break;
 		case 0xcf:
 			printf("RST\t1");
@@ -1034,18 +1362,22 @@ void cpu8080_disassembly(const char* buffer, int size)
 			break;
 		case 0xd2:
 			printf("JNC\t0x%02x%02x", opcode[2], opcode[1]);
+			pc += 2;
 			break;
 		case 0xd3:
 			printf("OUT\t#$0x%02x", opcode[1]);
+			pc += 1;
 			break;
 		case 0xd4:
 			printf("CNC\t0x%02x%02x", opcode[2], opcode[1]);
+			pc += 2;
 			break;
 		case 0xd5:
 			printf("PUSH\tD");
 			break;
 		case 0xd6:
 			printf("SUI\t#$0x%02x", opcode[1]);
+			pc += 1;
 			break;
 		case 0xd7:
 			printf("RST\t2");
@@ -1055,15 +1387,19 @@ void cpu8080_disassembly(const char* buffer, int size)
 			break;
 		case 0xda:
 			printf("JC\t0x%02x%02x", opcode[2], opcode[1]);
+			pc += 2;
 			break;
 		case 0xdb:
 			printf("IN\t#$0x%02x", opcode[1]);
+			pc += 1;
 			break;
 		case 0xdc:
 			printf("CC\t0x%02x%02x", opcode[2], opcode[1]);
+			pc += 2;
 			break;
 		case 0xde:
 			printf("SBI\t#$0x%02x", opcode[1]);
+			pc += 1;
 			break;
 		case 0xdf:
 			printf("RST\t3");
@@ -1076,18 +1412,21 @@ void cpu8080_disassembly(const char* buffer, int size)
 			break;
 		case 0xe2:
 			printf("JPO\t0x%02x%02x", opcode[2], opcode[1]);
+			pc += 2;
 			break;
 		case 0xe3:
 			printf("XTHL");
 			break;
 		case 0xe4:
 			printf("CPO\t0x%02x%02x", opcode[2], opcode[1]);
+			pc += 2;
 			break;
 		case 0xe5:
 			printf("PUSH\tH");
 			break;
 		case 0xe6:
 			printf("ANI\t#$0x%02x", opcode[1]);
+			pc += 1;
 			break;
 		case 0xe7:
 			printf("RST\t4");
@@ -1100,15 +1439,18 @@ void cpu8080_disassembly(const char* buffer, int size)
 			break;
 		case 0xea:
 			printf("JPE\t0x%02x%02x", opcode[2], opcode[1]);
+			pc += 2;
 			break;
 		case 0xeb:
 			printf("XCHG");
 			break;
 		case 0xec:
 			printf("CPE\t0x%02x%02x", opcode[2], opcode[1]);
+			pc += 2;
 			break;
 		case 0xee:
 			printf("XRI\t#$0x%02x", opcode[1]);
+			pc += 1;
 			break;
 		case 0xef:
 			printf("RST\t5");
@@ -1121,18 +1463,21 @@ void cpu8080_disassembly(const char* buffer, int size)
 			break;
 		case 0xf2:
 			printf("JP\t0x%02x%02x", opcode[2], opcode[1]);
+			pc += 2;
 			break;
 		case 0xf3:
 			printf("DI");
 			break;
 		case 0xf4:
 			printf("CP\t0x%02x%02x", opcode[2], opcode[1]);
+			pc += 2;
 			break;
 		case 0xf5:
 			printf("PUSH\tPSW");
 			break;
 		case 0xf6:
 			printf("ORD\t#$0x%02x", opcode[1]);
+			pc += 1;
 			break;
 		case 0xf7:
 			printf("RST\t6");
@@ -1145,15 +1490,18 @@ void cpu8080_disassembly(const char* buffer, int size)
 			break;
 		case 0xfa:
 			printf("JM\t0x%02x%02x", opcode[2], opcode[1]);
+			pc += 2;
 			break;
 		case 0xfb:
 			printf("EI");
 			break;
 		case 0xfc:
 			printf("CM\t0x%02x%02x", opcode[2], opcode[1]);
+			pc += 2;
 			break;
 		case 0xfe:
 			printf("CPI\t#$0x%02x", opcode[1]);
+			pc += 1;
 			break;
 		case 0xff:
 			printf("RST\t7");
@@ -1162,7 +1510,7 @@ void cpu8080_disassembly(const char* buffer, int size)
 			printf("Unknown Instruction: 0x%02x", *opcode);
 			break;
 		}
-		printf("\n");
+		//printf("\n");
 		pc++;
 	}
 }
