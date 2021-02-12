@@ -55,7 +55,7 @@ static inline void set_arithmetic_flags(cpu8080* cpu, uint16_t res)
 
 static void debug(cpu8080* cpu)
 {
-	cpu8080_disassembly(cpu->memory, cpu->pc);
+	cpu8080_disassembly(cpu, cpu->memory, cpu->pc);
 	printf("\tA = %04X, B = %04X, C = %04X, D = %04X, E = %04X\n",
 		cpu->a, cpu->b, cpu->c, cpu->d, cpu->e);
 }
@@ -177,7 +177,7 @@ static inline void cpu8080_sbb(cpu8080* cpu, uint8_t reg)
 void cpu8080_emulate(cpu8080* cpu)
 {
 	uint8_t* opcode = &cpu->memory[cpu->pc];
-	debug(cpu);
+	//debug(cpu);
 	switch (*opcode)
 	{
 		case NOP:
@@ -688,7 +688,11 @@ void cpu8080_emulate(cpu8080* cpu)
 				cpu->pc++;
 		} break;
 
-
+		case PRINT_B:
+		{
+			printf("HEX #$0x%02x, DEC %d\n", cpu->b, cpu->b);
+			cpu->pc++;
+		} break;
 		case HLT:
 		{
 			cpu->halted = true;
@@ -706,9 +710,10 @@ void cpu8080_run(cpu8080* cpu)
 }
 
 
-void cpu8080_disassembly(const char* buffer, int pc)
+void cpu8080_disassembly(cpu8080* cpu, const char* buffer, int size)
 {
-	//while (pc < size)
+	int pc = 0;
+	while (pc < size)
 	{
 		uint8_t* opcode = &buffer[pc];
 		printf("0x%04X:\t", pc);
@@ -1506,11 +1511,14 @@ void cpu8080_disassembly(const char* buffer, int pc)
 		case 0xff:
 			printf("RST\t7");
 			break;
+		case 0xed:
+			printf("PRINT_B\t#$0x%02x", cpu->b);
+			break;
 		default:
 			printf("Unknown Instruction: 0x%02x", *opcode);
 			break;
 		}
-		//printf("\n");
+		printf("\n");
 		pc++;
 	}
 }

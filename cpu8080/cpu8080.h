@@ -121,4 +121,4 @@ void cpu8080_init(cpu8080* cpu);
 void cpu8080_load_program(cpu8080* cpu, const uint8_t* buffer, int size, uint32_t  offset);
 void cpu8080_emulate(cpu8080* cpu);
 void cpu8080_run(cpu8080* cpu);
-void cpu8080_disassembly(const char* buffer, int size);
+void cpu8080_disassembly(cpu8080* cpu, const char* buffer, int size);
