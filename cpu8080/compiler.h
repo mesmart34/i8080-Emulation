@@ -4,8 +4,10 @@
 #include <stdint.h>
 #include <string.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include "cpu8080.h"
+#include <ctype.h>
 
-void compile(const char* buffer, uint32_t size, const char* output);
+const char* compile(const char* filename, uint32_t* buf_size);
 
 #endif

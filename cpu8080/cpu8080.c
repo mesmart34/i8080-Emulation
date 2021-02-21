@@ -308,34 +308,20 @@ void cpu8080_emulate(cpu8080* cpu)
 			cpu->a = opcode[1];
 			cpu->pc += 2;
 		} break;
-		case MOV_D_M:
+		
+		case MOV_A_A:
 		{
-			cpu->d = cpu8080_rb(cpu, cpu8080_get_hl(cpu));
-			cpu->pc += 1;
-		} break;
-		case MOV_E_M:
-		{
-			cpu->e = cpu8080_rb(cpu, cpu8080_get_hl(cpu));
-			cpu->pc += 1;
-		} break;
-		case MOV_H_M:
-		{
-			cpu->h = cpu8080_rb(cpu, cpu8080_get_hl(cpu));
-			cpu->pc += 1;
-		} break;
-		case MOV_L_A:
-		{
-			cpu->l = cpu->a;
-			cpu->pc += 1;
-		} break;
-		case MOV_M_A:
-		{
-			cpu8080_wb(cpu, cpu->a, cpu8080_get_hl(cpu));
+			cpu->a = cpu->a;
 			cpu->pc += 1;
 		} break;
 		case MOV_A_B:
 		{
 			cpu->a = cpu->b;
+			cpu->pc += 1;
+		} break;
+		case MOV_A_C:
+		{
+			cpu->a = cpu->c;
 			cpu->pc += 1;
 		} break;
 		case MOV_A_D:
@@ -353,11 +339,222 @@ void cpu8080_emulate(cpu8080* cpu)
 			cpu->a = cpu->h;
 			cpu->pc += 1;
 		} break;
+		case MOV_A_L:
+		{
+			cpu->a = cpu->l;
+			cpu->pc += 1;
+		} break;
 		case MOV_A_M:
 		{
 			cpu->a = cpu8080_rb(cpu, cpu8080_get_hl(cpu));
 			cpu->pc += 1;
 		} break;
+
+		case MOV_B_A:
+		{
+			cpu->b = cpu->a;
+			cpu->pc += 1;
+		} break;
+		case MOV_B_B:
+		{
+			cpu->b = cpu->b;
+			cpu->pc += 1;
+		} break;
+		case MOV_B_C:
+		{
+			cpu->b = cpu->c;
+			cpu->pc += 1;
+		} break;
+		case MOV_B_D:
+		{
+			cpu->b = cpu->d;
+			cpu->pc += 1;
+		} break;
+		case MOV_B_E:
+		{
+			cpu->b = cpu->e;
+			cpu->pc += 1;
+		} break;
+		case MOV_B_H:
+		{
+			cpu->b = cpu->h;
+			cpu->pc += 1;
+		} break;
+		case MOV_B_L:
+		{
+			cpu->b = cpu->l;
+			cpu->pc += 1;
+		} break;
+		case MOV_B_M:
+		{
+			cpu->b = cpu8080_rb(cpu, cpu8080_get_hl(cpu));
+			cpu->pc += 1;
+		} break;
+
+		case MOV_C_A:
+		{
+			cpu->c = cpu->a;
+			cpu->pc += 1;
+		} break;
+		case MOV_C_B:
+		{
+			cpu->c = cpu->b;
+			cpu->pc += 1;
+		} break;
+		case MOV_C_C:
+		{
+			cpu->c = cpu->c;
+			cpu->pc += 1;
+		} break;
+		case MOV_C_D:
+		{
+			cpu->c = cpu->d;
+			cpu->pc += 1;
+		} break;
+		case MOV_C_E:
+		{
+			cpu->c = cpu->e;
+			cpu->pc += 1;
+		} break;
+		case MOV_C_H:
+		{
+			cpu->c = cpu->h;
+			cpu->pc += 1;
+		} break;
+		case MOV_C_L:
+		{
+			cpu->c = cpu->l;
+			cpu->pc += 1;
+		} break;
+		case MOV_C_M:
+		{
+			cpu->c = cpu8080_rb(cpu, cpu8080_get_hl(cpu));
+			cpu->pc += 1;
+		} break;
+
+		case MOV_D_A:
+		{
+			cpu->d = cpu->a;
+			cpu->pc += 1;
+		} break;
+		case MOV_D_B:
+		{
+			cpu->d = cpu->b;
+			cpu->pc += 1;
+		} break;
+		case MOV_D_C:
+		{
+			cpu->c = cpu->c;
+			cpu->pc += 1;
+		} break;
+		case MOV_D_D:
+		{
+			cpu->d = cpu->d;
+			cpu->pc += 1;
+		} break;
+		case MOV_D_E:
+		{
+			cpu->d = cpu->e;
+			cpu->pc += 1;
+		} break;
+		case MOV_D_H:
+		{
+			cpu->d = cpu->h;
+			cpu->pc += 1;
+		} break;
+		case MOV_D_L:
+		{
+			cpu->d = cpu->l;
+			cpu->pc += 1;
+		} break;
+		case MOV_D_M:
+		{
+			cpu->d = cpu8080_rb(cpu, cpu8080_get_hl(cpu));
+			cpu->pc += 1;
+		} break;
+
+		case MOV_E_A:
+		{
+			cpu->e = cpu->a;
+			cpu->pc += 1;
+		} break;
+		case MOV_E_B:
+		{
+			cpu->e = cpu->b;
+			cpu->pc += 1;
+		} break;
+		case MOV_E_C:
+		{
+			cpu->e = cpu->c;
+			cpu->pc += 1;
+		} break;
+		case MOV_E_D:
+		{
+			cpu->e = cpu->d;
+			cpu->pc += 1;
+		} break;
+		case MOV_E_E:
+		{
+			cpu->e = cpu->e;
+			cpu->pc += 1;
+		} break;
+		case MOV_E_H:
+		{
+			cpu->e = cpu->h;
+			cpu->pc += 1;
+		} break;
+		case MOV_E_L:
+		{
+			cpu->e = cpu->l;
+			cpu->pc += 1;
+		} break;
+		case MOV_E_M:
+		{
+			cpu->e = cpu8080_rb(cpu, cpu8080_get_hl(cpu));
+			cpu->pc += 1;
+		} break;
+
+		case MOV_H_A:
+		{
+			cpu->h = cpu->a;
+			cpu->pc += 1;
+		} break;
+		case MOV_H_B:
+		{
+			cpu->h = cpu->b;
+			cpu->pc += 1;
+		} break;
+		case MOV_H_C:
+		{
+			cpu->h = cpu->c;
+			cpu->pc += 1;
+		} break;
+		case MOV_H_D:
+		{
+			cpu->h = cpu->d;
+			cpu->pc += 1;
+		} break;
+		case MOV_H_E:
+		{
+			cpu->h = cpu->e;
+			cpu->pc += 1;
+		} break;
+		case MOV_H_H:
+		{
+			cpu->h = cpu->h;
+			cpu->pc += 1;
+		} break;
+		case MOV_H_L:
+		{
+			cpu->h = cpu->l;
+			cpu->pc += 1;
+		} break;
+		case MOV_H_M:
+		{
+			cpu->h = cpu8080_rb(cpu, cpu8080_get_hl(cpu));
+			cpu->pc += 1;
+		} break;
+
 		case ANA_A:
 		{
 			cpu->a &= cpu->a;
@@ -687,10 +884,19 @@ void cpu8080_emulate(cpu8080* cpu)
 			else
 				cpu->pc++;
 		} break;
-
+		case PRINT_A:
+		{
+			printf("HEX #$0x%02x, DEC %d\n", cpu->a, cpu->a);
+			cpu->pc++;
+		} break;
 		case PRINT_B:
 		{
 			printf("HEX #$0x%02x, DEC %d\n", cpu->b, cpu->b);
+			cpu->pc++;
+		} break;
+		case PRINT_C:
+		{
+			printf("HEX #$0x%02x, DEC %d\n", cpu->c, cpu->c);
 			cpu->pc++;
 		} break;
 		case HLT:
@@ -710,6 +916,8 @@ void cpu8080_run(cpu8080* cpu)
 }
 
 
+/*I commented a few instructions to replace them with print instructions (RIM, SIM)*/
+
 void cpu8080_disassembly(cpu8080* cpu, const char* buffer, int size)
 {
 	int pc = 0;
@@ -723,7 +931,15 @@ void cpu8080_disassembly(cpu8080* cpu, const char* buffer, int size)
 			printf("NOP");
 			break;
 		case 0x08:
-		case 0x10:
+		case PRINT_A:
+			printf("PRINT_A\t#$0x%02x", cpu->a);
+			break;
+		case PRINT_B:
+			printf("PRINT_B\t#$0x%02x", cpu->b);
+			break;
+		case PRINT_C:
+			printf("PRINT_C\t#$0x%02x", cpu->c);
+			break;
 		case 0x18:
 		case 0x28:
 		case 0x38:
@@ -822,9 +1038,9 @@ void cpu8080_disassembly(cpu8080* cpu, const char* buffer, int size)
 		case 0x1f:
 			printf("RAR");
 			break;
-		case 0x20:
+		/*case 0x20:
 			printf("RIM");
-			break;
+			break;*/
 		case 0x21:
 			printf("LXI\tH, #$0x%02x%02x", opcode[2], opcode[1]);
 			pc += 2;
@@ -872,9 +1088,9 @@ void cpu8080_disassembly(cpu8080* cpu, const char* buffer, int size)
 		case 0x2f:
 			printf("CMA");
 			break;
-		case 0x30:
+		/*case 0x30:
 			printf("SIM");
-			break;
+			break;*/
 		case 0x31:
 			printf("LXI\tSP, #$0x%02x%02x", opcode[2], opcode[1]);
 			pc += 2;
@@ -1510,9 +1726,6 @@ void cpu8080_disassembly(cpu8080* cpu, const char* buffer, int size)
 			break;
 		case 0xff:
 			printf("RST\t7");
-			break;
-		case 0xed:
-			printf("PRINT_B\t#$0x%02x", cpu->b);
 			break;
 		default:
 			printf("Unknown Instruction: 0x%02x", *opcode);

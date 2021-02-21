@@ -24,9 +24,9 @@ static const uint8_t* read_file(const char* path, uint32_t* buffer_size)
 	return buffer;
 }
 
-static void write_program_to_file(const char* path)
+static void write_program_to_file(const char* path, uint8_t* code, uint32_t size)
 {
-	int instructions = 9;
+	/*int instructions = 9;
 	uint32_t size = sizeof(uint8_t) * instructions;
 	uint8_t* data = malloc(size);
 	*(data + 0) = MVI_B_D8;
@@ -37,14 +37,14 @@ static void write_program_to_file(const char* path)
 	*(data + 5) = JNZ_addr;
 	*(data + 6) = 0x02;
 	*(data + 7) = 0x00;
-	*(data + 8) = HLT;
+	*(data + 8) = HLT;*/
 	FILE* file = fopen(path, "wb");
 	if (file == NULL)
 	{
 		printf("Couldn't able to load the file: %s\n", path);
 		return NULL;
 	}
-	fwrite(data, sizeof(uint8_t), instructions, file);
+	fwrite(code, sizeof(uint8_t), size, file);
 	fclose(file);
 }
 
@@ -59,17 +59,23 @@ int main(int argc, char** argv)
 {
 	cpu8080 cpu;
 	cpu8080_init(&cpu);
-	write_program_to_file("main.asm");
+	/*write_program_to_file("main.asm");
 	load_to_memory(&cpu, "main.asm", 0);
 	uint32_t buf_size;
 	uint8_t* buffer = read_file("main.asm", &buf_size);
-	//cpu8080_disassembly(&cpu, buffer, buf_size);
-	cpu8080_run(&cpu);
+	cpu8080_disassembly(&cpu, buffer, buf_size);
+	cpu8080_run(&cpu);*/
 	/*load_to_memory(&cpu, "space invaders/invaders.h", 0);
 	load_to_memory(&cpu, "space invaders/invaders.g", 0x800);
 	load_to_memory(&cpu, "space invaders/invaders.f", 0x1000);
-	load_to_memory(&cpu, "space invaders/invaders.e", 0x1800);*/
-	//cpu8080_run(&cpu);
+	load_to_memory(&cpu, "space invaders/invaders.e", 0x1800);8?*/
+	uint32_t buf_size = 0;
+	uint8_t* compiled_code = compile("test.asm", &buf_size);
+	write_program_to_file("test.bin", compiled_code, buf_size);
+	load_to_memory(&cpu, "test.bin", 0);
+	cpu8080_disassembly(&cpu, compiled_code, buf_size);
+	
+	cpu8080_run(&cpu);
 	getchar();
 	return 0;
 }
