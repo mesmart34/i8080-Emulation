@@ -24,30 +24,6 @@ static const uint8_t* read_file(const char* path, size_t& buffer_size)
 	return buffer;
 }
 
-static void write_program_to_file(const char* path, const uint8_t* code, uint32_t size)
-{
-	/*int instructions = 9;
-	uint32_t size = sizeof(uint8_t) * instructions;
-	uint8_t* data = malloc(size);
-	*(data + 0) = MVI_B_D8;
-	*(data + 1) = 0x10;
-	*(data + 2) = PRINT_B;
-	*(data + 3) = DCR_B;
-	*(data + 4) = PRINT_B;
-	*(data + 5) = JNZ_addr;
-	*(data + 6) = 0x02;
-	*(data + 7) = 0x00;
-	*(data + 8) = HLT;*/
-	FILE* file = fopen(path, "wb");
-	if (file == NULL)
-	{
-		printf("Couldn't able to load the file: %s\n", path);
-		return;
-	}
-	fwrite(code, sizeof(uint8_t), size, file);
-	fclose(file);
-}
-
 void load_to_memory(CPU8080& cpu, const char* path, uint32_t offset)
 {
 	size_t size = 0;
@@ -81,9 +57,9 @@ int main(int argc, char** argv)
 	cmp.Compile("test.asm", "test2.bin");
 	size_t size = 0;
 	auto data = (uint8_t*)read_file("test2.bin", size);
-	load_to_memory(cpu, "test2.bin", 0x00);
+	load_to_memory(cpu, "cpudiag.bin", 0);
 	cpu.disassembly(data, size);
-	cpu.run(0);
+	//cpu.run(0x0102);
 	getchar();
 	return 0;
 }

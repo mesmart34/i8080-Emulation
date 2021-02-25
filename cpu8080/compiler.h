@@ -13,6 +13,7 @@
 #include <vector>
 #include "CPU8080.h"
 
+
 class Compiler
 {
 public:
@@ -20,6 +21,7 @@ public:
 
 	void Compile(const char* filename, const char* name);
 private:
+	void FindLabeles(std::ifstream&  input, std::map<std::string, uint32_t>& labels);
 	void WriteToFile(const uint8_t* code, const char* name, const size_t size);
 	void ProcessInstruction(uint8_t* code, const std::vector<std::string>& opcodes, std::map<std::string, uint32_t>& labels, uint32_t& pc);
 	void MVI(uint8_t* code, const std::vector<std::string>& opcodes, uint32_t& pc);

@@ -1,5 +1,45 @@
 #include "compiler.h"
 
+const static std::map<std::string, uint32_t> instruction_sizes{
+	std::map<std::string, uint32_t> {
+		{"LXI", 3},
+		{"MVI", 2},
+		{"SHLD", 3},
+		{"LHLD", 3},
+		{"STA", 3},
+		{"LDA", 3},
+		{"JNZ", 3},
+		{"JMP", 3},
+		{"CNZ", 3},
+		{"ADI", 2},
+		{"JZ", 3},
+		{"CZ", 3},
+		{"CALL", 3},
+		{"ACI", 2},
+		{"JNC", 3},
+		{"OUT", 2},
+		{"CNC", 3},
+		{"SUI", 2},
+		{"JC", 3},
+		{"IN_D8", 2},
+		{"CC", 3},
+		{"SBI", 2},
+		{"JPO", 3},
+		{"CPO",	3},
+		{"ANI",	2},
+		{"JPE",	3},
+		{"CPE",	3},
+		{"XRI",	2},
+		{"JP",	2},
+		{"CP",	3},
+		{"ORI",	2},
+		{"JM",	3},
+		{"CM",	3},
+		{"CPI",	2}
+	}
+};
+
+
 void Compiler::LowerCase(char* p)
 {
 	for (; *p; ++p) *p = tolower(*p);
@@ -13,6 +53,9 @@ void Compiler::Compile(const char* filename, const char* name)
 	std::string line;
 	uint32_t pc = 0;
 	uint8_t* code = new uint8_t(256);
+	FindLabeles(input, labels);
+	input.clear();
+	input.seekg(0);
 	while (std::getline(input, line))
 	{
 		if(line.size() < 2 || line.empty() || line.at(0) == ';')
@@ -28,14 +71,47 @@ void Compiler::Compile(const char* filename, const char* name)
 		}
 		if (splited[0].find(":") != std::string::npos)
 		{
-			auto label = std::string(splited[0].substr(0, splited[0].size() - 1));
-			labels[label] = pc - 1;
 			splited = std::vector<std::string>(splited.begin() + 1, splited.end());
 		}
 		ProcessInstruction(code, splited, labels, pc);
 	}
 	input.close();
 	WriteToFile(code, name, pc);
+}
+
+void Compiler::FindLabeles(std::ifstream& const input, std::map<std::string, uint32_t>& labels)
+{
+	std::string line;
+	uint32_t pc = 0;
+	while (std::getline(input, line))
+	{
+		if (line.size() < 2 || line.empty() || line.at(0) == ';')
+			continue;
+		std::vector<std::string> splited;
+		char* pch = NULL;
+		pch = strtok((char*)line.c_str(), "\r\t ,");
+		while (pch != NULL)
+		{
+			LowerCase(pch);
+			splited.push_back(pch);
+			pch = strtok(NULL, "\r\t ,");
+		}
+		if (splited[0].find(":") != std::string::npos)
+		{
+			auto label = std::string(splited[0].substr(0, splited[0].size() - 1));
+			labels[label] = pc;
+			splited = std::vector<std::string>(splited.begin() + 1, splited.end());
+		}
+		else {
+			if (instruction_sizes.count(splited[0]))
+			{
+				pc += instruction_sizes.at(splited[0]);
+			}
+			else {
+				pc += 2;
+			}
+		}
+	}
 }
 
 void Compiler::WriteToFile(const uint8_t* code, const char* name, const size_t size)
@@ -303,7 +379,6 @@ void Compiler::MOV(uint8_t* code, const std::vector<std::string>& opcodes, uint3
 void Compiler::JMP(uint32_t type, uint8_t* code, const std::vector<std::string>& opcodes, std::map<std::string, uint32_t>& labels, uint32_t& pc)
 {
 	code[pc + 0] = type;
-	//auto val = (uint16_t)strtol(opcodes[1].c_str(), NULL, 16);
 	uint16_t val = labels[opcodes[1]];
 	uint8_t a = val << 8;
 	uint8_t b = val;
