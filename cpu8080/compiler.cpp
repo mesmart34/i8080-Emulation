@@ -2,40 +2,40 @@
 
 const static std::map<std::string, uint32_t> instruction_sizes{
 	std::map<std::string, uint32_t> {
-		{"LXI", 3},
-		{"MVI", 2},
-		{"SHLD", 3},
-		{"LHLD", 3},
-		{"STA", 3},
-		{"LDA", 3},
-		{"JNZ", 3},
-		{"JMP", 3},
-		{"CNZ", 3},
-		{"ADI", 2},
-		{"JZ", 3},
-		{"CZ", 3},
-		{"CALL", 3},
-		{"ACI", 2},
-		{"JNC", 3},
-		{"OUT", 2},
-		{"CNC", 3},
-		{"SUI", 2},
-		{"JC", 3},
-		{"IN_D8", 2},
-		{"CC", 3},
-		{"SBI", 2},
-		{"JPO", 3},
-		{"CPO",	3},
-		{"ANI",	2},
-		{"JPE",	3},
-		{"CPE",	3},
-		{"XRI",	2},
-		{"JP",	2},
-		{"CP",	3},
-		{"ORI",	2},
-		{"JM",	3},
-		{"CM",	3},
-		{"CPI",	2}
+		{"lxi", 3},
+		{"mvi", 2},
+		{"shld", 3},
+		{"lhld", 3},
+		{"sta", 3},
+		{"lda", 3},
+		{"jnz", 3},
+		{"jmp", 3},
+		{"cnz", 3},
+		{"adi", 2},
+		{"jz", 3},
+		{"cz", 3},
+		{"call", 3},
+		{"aci", 2},
+		{"jnz", 3},
+		{"out", 2},
+		{"cnc", 3},
+		{"sui", 2},
+		{"jc", 3},
+		{"in", 2},
+		{"cc", 3},
+		{"sbi", 2},
+		{"jpo", 3},
+		{"cpo",	3},
+		{"ani",	2},
+		{"jpe",	3},
+		{"cpe",	3},
+		{"xri",	2},
+		{"jp",	2},
+		{"cp",	3},
+		{"ori",	2},
+		{"jm",	3},
+		{"cm",	3},
+		{"cpi",	2}
 	}
 };
 
@@ -96,22 +96,20 @@ void Compiler::FindLabeles(std::ifstream& const input, std::map<std::string, uin
 			splited.push_back(pch);
 			pch = strtok(NULL, "\r\t ,");
 		}
+		auto offset = 0;
 		if (splited[0].find(":") != std::string::npos)
 		{
 			auto label = std::string(splited[0].substr(0, splited[0].size() - 1));
+			offset = 1;
 			labels[label] = pc;
-			splited = std::vector<std::string>(splited.begin() + 1, splited.end());
 		}
-		else {
-			if (instruction_sizes.count(splited[0]))
-			{
-				pc += instruction_sizes.at(splited[0]);
-			}
-			else {
-				pc += 2;
-			}
-		}
-	}
+		
+		if (instruction_sizes.find(splited[offset]) != instruction_sizes.end())
+			pc += instruction_sizes.at(splited[offset]);
+		else
+			pc += 1;
+		
+ 	}
 }
 
 void Compiler::WriteToFile(const uint8_t* code, const char* name, const size_t size)

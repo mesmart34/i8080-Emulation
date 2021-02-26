@@ -32,7 +32,7 @@ void CPU8080::run(const uint32_t start_addr)
 	pc = start_addr;
 	while (!halted)
 	{
-		debug(pc);
+		//debug(pc);
 		emulate();
 	}
 }
@@ -510,6 +510,21 @@ void CPU8080::emulate()
 		h = rb(get_hl());
 		pc += 1;
 	} break;
+	case MOV_L_A:
+	{
+		l = a;
+		pc++;  
+	} break;
+	case MOV_L_B:
+	{
+		l = b;
+		pc++;
+	} break;
+	case MOV_L_C:
+	{
+		l = c;
+		pc++;
+	} break;
 	case ADC_C:
 	{
 		auto val = a << 8;
@@ -578,7 +593,7 @@ void CPU8080::emulate()
 	{
 		if (cf != 1)
 		{
-			jump(((opcode[2] << 8) | opcode[1]) + 1);
+			jump(((opcode[2] << 8) | opcode[1]));
 		}
 		else {
 			pc += 3;
@@ -587,7 +602,7 @@ void CPU8080::emulate()
 	case JNZ_addr:
 	{
 		if (zf == 0)
-			jump(((opcode[2] << 8) | opcode[1]) + 1);
+			jump(((opcode[2] << 8) | opcode[1]));
 		else
 			pc += 3;
 	} break;

@@ -57,9 +57,9 @@ int main(int argc, char** argv)
 	cmp.Compile("test.asm", "test2.bin");
 	size_t size = 0;
 	auto data = (uint8_t*)read_file("test2.bin", size);
-	load_to_memory(cpu, "cpudiag.bin", 0);
+	load_to_memory(cpu, "test2.bin", 0);
 	cpu.disassembly(data, size);
-	//cpu.run(0x0102);
+	cpu.run(0);
 	getchar();
 	return 0;
 }
