@@ -6,7 +6,9 @@
 #include <memory>
 #include <stdexcept>
 
+
 #define MEM_SIZE 0x10000
+#define CPU_DEBUG 0
 
 enum Instructions
 {
@@ -329,8 +331,7 @@ public:
 	CPU8080();
 
 	void load_program(const uint8_t* buffer, const size_t size, const uint32_t offset);
-	void run(const uint32_t start_addr);
-	void disassembly(uint8_t* buffer, const size_t size);
+	void run(const uint32_t start_addr, bool debugging);
 	void debug(const uint32_t pc);
 private:
 	void emulate();
@@ -362,5 +363,6 @@ private:
 	//sign, zero, parity, carry(cy, cf), auxillary carry
 	uint8_t sf, zf, pf, cf, ac;
 	bool halted, enable_int;
+public:
 	uint8_t* memory;
 };

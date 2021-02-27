@@ -20,6 +20,8 @@ public:
 	Compiler() = default;
 
 	void Compile(const char* filename, const char* name);
+	void Disassembly(uint8_t* buffer, const size_t size);
+	void DisassemblyFromFile(const char* filename);
 private:
 	void FindLabeles(std::ifstream&  input, std::map<std::string, uint32_t>& labels);
 	void WriteToFile(const uint8_t* code, const char* name, const size_t size);

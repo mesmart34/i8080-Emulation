@@ -31,35 +31,41 @@ void load_to_memory(CPU8080& cpu, const char* path, uint32_t offset)
 	cpu.load_program(buffer, size, offset);
 }
 
+void run_diag(CPU8080& cpu, Compiler& compiler)
+{
+	size_t size = 0;
+	auto data = (uint8_t*)read_file("cpudiag.bin", size);
+	load_to_memory(cpu, "cpudiag.bin", 0x100);
+	cpu.memory[0] = 0xc3;
+	cpu.memory[1] = 0;
+	cpu.memory[2] = 0x01; 
+	cpu.memory[368] = 0x7;
+	cpu.memory[0x59c] = 0xc3;  
+	cpu.memory[0x59d] = 0xc2;
+	cpu.memory[0x59e] = 0x05;
+	compiler.Disassembly(data, size);
+	cpu.run(0, false);
+}
+
+void load_space_inv(CPU8080& cpu, Compiler& compiler)
+{
+	load_to_memory(cpu, "space invaders/invaders.h", 0);
+	compiler.DisassemblyFromFile("space invaders/invaders.h");
+	load_to_memory(cpu, "space invaders/invaders.g", 0x800);
+	compiler.DisassemblyFromFile("space invaders/invaders.g");
+	load_to_memory(cpu, "space invaders/invaders.f", 0x1000);
+	compiler.DisassemblyFromFile("space invaders/invaders.f");
+	load_to_memory(cpu, "space invaders/invaders.e", 0x1800);
+	compiler.DisassemblyFromFile("space invaders/invaders.e");
+	//cpu.run(0, true);
+}
+
 int main(int argc, char** argv)
 {
-	/*cpu8080 cpu;
-	cpu8080_init(&cpu);
-	write_program_to_file("main.asm");
-	load_to_memory(&cpu, "main.asm", 0);
-	uint32_t buf_size;
-	uint8_t* buffer = read_file("main.asm", &buf_size);
-	cpu8080_disassembly(&cpu, buffer, buf_size);
-	cpu8080_run(&cpu);*/
-	/*load_to_memory(&cpu, "space invaders/invaders.h", 0);
-	load_to_memory(&cpu, "space invaders/invaders.g", 0x800);
-	load_to_memory(&cpu, "space invaders/invaders.f", 0x1000);
-	load_to_memory(&cpu, "space invaders/invaders.e", 0x1800);8?
-	uint32_t buf_size = 0;
-	uint8_t* compiled_code = compile("test.asm", &buf_size);
-	write_program_to_file("test.bin", compiled_code, buf_size);
-	load_to_memory(&cpu, "test.bin", 0);
-	cpu8080_disassembly(&cpu, compiled_code, buf_size);
-	
-	cpu8080_run(&cpu);*/
 	CPU8080 cpu = CPU8080();
 	Compiler cmp = Compiler();
-	cmp.Compile("test.asm", "test2.bin");
-	size_t size = 0;
-	auto data = (uint8_t*)read_file("test2.bin", size);
-	load_to_memory(cpu, "test2.bin", 0);
-	cpu.disassembly(data, size);
-	cpu.run(0);
+	run_diag(cpu, cmp);
+	//load_space_inv(cpu, cmp);
 	getchar();
 	return 0;
 }
