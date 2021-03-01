@@ -31,20 +31,23 @@ void load_to_memory(CPU8080& cpu, const char* path, uint32_t offset)
 	cpu.load_program(buffer, size, offset);
 }
 
+void run_test(CPU8080& cpu, Compiler& compiler)
+{
+	size_t size = 0;
+	/*compiler.Compile("fib.asm", "fib.bin");
+	auto data = (uint8_t*)read_file("fib.bin", size);*/
+	load_to_memory(cpu, "fib.bin", 0);
+	//compiler.Disassembly(data, size);
+	cpu.run(0, false);
+}
+
 void run_diag(CPU8080& cpu, Compiler& compiler)
 {
 	size_t size = 0;
-	auto data = (uint8_t*)read_file("cpudiag.bin", size);
-	load_to_memory(cpu, "cpudiag.bin", 0x100);
-	cpu.memory[0] = 0xc3;
-	cpu.memory[1] = 0;
-	cpu.memory[2] = 0x01; 
-	cpu.memory[368] = 0x7;
-	cpu.memory[0x59c] = 0xc3;  
-	cpu.memory[0x59d] = 0xc2;
-	cpu.memory[0x59e] = 0x05;
-	compiler.Disassembly(data, size);
-	cpu.run(0, false);
+	auto data = (uint8_t*)read_file("diag.bin", size);
+	load_to_memory(cpu, "diag.bin", 0);
+	//compiler.Disassembly(data, size);
+	cpu.run(0, true);
 }
 
 void load_space_inv(CPU8080& cpu, Compiler& compiler)
@@ -64,7 +67,8 @@ int main(int argc, char** argv)
 {
 	CPU8080 cpu = CPU8080();
 	Compiler cmp = Compiler();
-	run_diag(cpu, cmp);
+	//run_diag(cpu, cmp);
+	run_test(cpu, cmp);
 	//load_space_inv(cpu, cmp);
 	getchar();
 	return 0;

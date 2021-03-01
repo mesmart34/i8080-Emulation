@@ -8,7 +8,7 @@
 
 
 #define MEM_SIZE 0x10000
-#define CPU_DEBUG 0
+#define CPU_DEBUG 1
 
 enum Instructions
 {

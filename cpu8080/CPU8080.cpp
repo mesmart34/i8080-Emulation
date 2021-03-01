@@ -19,7 +19,7 @@ CPU8080::CPU8080()
 	zf = 0;
 	sf = 0;
 	memory = (uint8_t*)malloc(MEM_SIZE);
-	memset(memory, 0, MEM_SIZE);
+	std::memset(memory, 0, MEM_SIZE);
 }
 
 void CPU8080::load_program(const uint8_t* buffer, size_t size, uint32_t offset)
@@ -111,6 +111,11 @@ void CPU8080::emulate()
 	case MVI_B_D8:
 	{
 		b = opcode[1];
+		pc += 2;
+	} break;
+	case MVI_D_D8:
+	{
+		d = opcode[1];
 		pc += 2;
 	} break;
 	case RLC:
@@ -220,7 +225,7 @@ void CPU8080::emulate()
 	{
 		set_bc(get_bc() - 1);
 		pc += 1;
-	}
+	};
 	case MVI_H_D8:
 	{
 		h = opcode[1];
@@ -560,22 +565,22 @@ void CPU8080::emulate()
 	} break;
 	case ADD_B:
 	{
-		b += a;
+		add(b);
 		pc++;
 	} break;
 	case ADD_C:
 	{
-		c += a;
+		add(c);
 		pc++;
 	} break;
 	case ADD_D:
 	{
-		d += a;
+		add(d);
 		pc++;
 	} break;
 	case ADD_E:
 	{
-		e += a;
+		add(e);
 		pc++;
 	} break;
 	case ADC_C:
@@ -983,12 +988,20 @@ void CPU8080::emulate()
 	} break;
 	case CPI_D8:
 	{
-		uint8_t x = a - opcode[1];
-		zf = (x == 0);
-		sf = (0x80 == (x & 0x80));
+		int8_t x = a - opcode[1];
+		zf = ((x & 0xff) == 0);
+		sf = ((x & 0x80) != 0);
 		pf = parity(x, 8);
-		cf = x > 0;
+		cf = ((x & 0x0100) != 0);
 		pc += 2;
+
+		/*auto res = a - opcode[1];
+		zf = ((res & 0xff) == 0);
+		sf = ((res & 0x80) != 0);
+		cf = (res > 0xff);
+		pf = parity(res & 0xff, 8);
+		pc++;*/
+
 	} break;
 	case XRI_D8:
 	{
@@ -1019,6 +1032,12 @@ void CPU8080::emulate()
 		auto val = rb((opcode[2] << 8) | opcode[1]);
 		set_hl(val);
 		pc += 3;
+	} break;
+	case ADD_M:
+	{
+		auto val = get_hl();
+		add(val);
+		pc += 1;
 	} break;
 	case ADD_H:
 	{

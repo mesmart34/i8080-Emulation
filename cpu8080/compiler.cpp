@@ -45,6 +45,119 @@ void Compiler::LowerCase(char* p)
 	for (; *p; ++p) *p = tolower(*p);
 }
 
+void Compiler::STA(uint8_t* code, const std::vector<std::string>& opcodes, uint32_t& pc)
+{
+	auto addr = (uint16_t)strtol(opcodes[1].c_str(), NULL, 16);
+	code[pc + 0] = STA_addr;
+	code[pc + 1] = addr;
+	code[pc + 2] = addr >> 8;
+	pc += 3;
+}
+
+void Compiler::LXI(uint8_t* code, const std::vector<std::string>& opcodes, uint32_t& pc)
+{
+	if (opcodes[1] == "h")
+	{
+		auto val = (uint16_t)strtol(opcodes[2].c_str(), NULL, 16);
+		code[pc + 0] = LXI_H_D16;
+		code[pc + 1] = val;
+		code[pc + 2] = val >> 8;
+		pc += 3;
+	}
+}
+
+void Compiler::XRA(uint8_t* code, const std::vector<std::string>& opcodes, uint32_t& pc)
+{
+	if (opcodes[1] == "a")
+	{
+		code[pc + 0] = XRA_A;
+		pc++;
+	}
+	else if (opcodes[1] == "b")
+	{
+		code[pc + 0] = XRA_B;
+		pc++;
+	}
+}
+
+void Compiler::LHLD(uint8_t* code, const std::vector<std::string>& opcodes, uint32_t& pc)
+{
+	auto addr = (uint16_t)strtol(opcodes[1].c_str(), NULL, 16);
+	code[pc + 0] = LHLD_addr;
+	code[pc + 1] = addr;
+	code[pc + 2] = addr >> 8;
+	pc += 3;
+}
+
+void Compiler::ADD(uint8_t* code, const std::vector<std::string>& opcodes, uint32_t& pc)
+{
+	if (opcodes[1] == "a")
+	{
+		code[pc + 0] = ADD_A;
+		pc++;
+	}
+	else if (opcodes[1] == "b")
+	{
+		code[pc + 0] = ADD_B;
+		pc++;
+	}
+	else if (opcodes[1] == "c")
+	{
+		code[pc + 0] = ADD_C;
+		pc++;
+	}
+	else if (opcodes[1] == "d")
+	{
+		code[pc + 0] = ADD_D;
+		pc++;
+	}
+	else if (opcodes[1] == "m")
+	{
+		code[pc + 0] = ADD_M;
+		pc++;
+	}
+}
+
+void Compiler::CMP(uint8_t* code, const std::vector<std::string>& opcodes, uint32_t& pc)
+{
+	if (opcodes[0] == "cpi")
+	{
+		code[pc + 0] = CPI_D8;
+		code[pc + 1] = (uint8_t)strtol(opcodes[1].c_str(), NULL, 16);
+		pc += 2;
+	}
+	else if (opcodes[1] == "a")
+	{
+		code[pc + 0] = CMP_A;
+		pc++;
+	}
+	else if (opcodes[1] == "b")
+	{
+		code[pc + 0] = CMP_B;
+		pc++;
+	}
+	else if (opcodes[1] == "c")
+	{
+		code[pc + 0] = CMP_C;
+		pc++;
+	} 
+	else if (opcodes[1] == "d")
+	{
+		code[pc + 0] = CMP_D;
+		pc++;
+	}
+	else if (opcodes[1] == "e")
+	{
+		code[pc + 0] = CMP_E;
+		pc++;
+	}
+	else if (opcodes[1] == "h")
+	{
+		code[pc + 0] = CMP_H;
+		pc++;
+	}
+}
+
 void Compiler::Compile(const char* filename, const char* name)
 {
 	std::map<std::string, uint32_t> labels;
@@ -112,6 +225,10 @@ void Compiler::Disassembly(uint8_t* buffer, const size_t size)
 			printf("LXI\tB, #$0x%02x%02x", opcode[2], opcode[1]);
 			pc += 2;
 			break;
+		case LXI_H_D16:
+			printf("LXI\tH, #$0x%02x%02x", opcode[2], opcode[1]);
+			pc += 2;
+			break;
 		case 0x02:
 			printf("STAX\tB");
 			break;
@@ -125,7 +242,11 @@ void Compiler::Disassembly(uint8_t* buffer, const size_t size)
 			printf("DCR\tB");
 			break;
 		case 0x06:
-			printf("\tB, #$0x%02x", opcode[1]);
+			printf("MVI\tB, #$0x%02x", opcode[1]);
+			pc += 1;
+			break;
+		case MVI_D_D8:
+			printf("MVI\tD, #$0x%02x", opcode[1]);
 			pc += 1;
 			break;
 		case 0x07:
@@ -169,9 +290,6 @@ void Compiler::Disassembly(uint8_t* buffer, const size_t size)
 		case 0x15:
 			printf("DCR\tD");
 			break;
-		case 0x16:
-			printf("DCR\tD");
-			break;
 		case 0x17:
 			printf("RAL");
 			break;
@@ -200,10 +318,6 @@ void Compiler::Disassembly(uint8_t* buffer, const size_t size)
 			/*case 0x20:
 				printf("RIM");
 				break;*/
-		case 0x21:
-			printf("LXI\tH, #$0x%02x%02x", opcode[2], opcode[1]);
-			pc += 2;
-			break;
 		case 0x22:
 			printf("SHLD\t0x%02x%02x", opcode[2], opcode[1]);
 			pc += 2;
@@ -695,6 +809,10 @@ void Compiler::Disassembly(uint8_t* buffer, const size_t size)
 			printf("JMP\t0x%02x%02x", opcode[2], opcode[1]);
 			pc += 2;
 			break;
+		case JM_addr:
+			printf("JM\t0x%02x%02x", opcode[2], opcode[1]);
+			pc += 2;
+			break;
 		case 0xc4:
 			printf("CNZ\t0x%02x%02x", opcode[2], opcode[1]);
 			pc += 2;
@@ -868,10 +986,6 @@ void Compiler::Disassembly(uint8_t* buffer, const size_t size)
 		case 0xf9:
 			printf("SPHL");
 			break;
-		case 0xfa:
-			printf("JM\t0x%02x%02x", opcode[2], opcode[1]);
-			pc += 2;
-			break;
 		case 0xfb:
 			printf("EI");
 			break;
@@ -918,7 +1032,7 @@ void Compiler::DisassemblyFromFile(const char* filename)
 void CPU8080::debug(const uint32_t pc)
 {
 	uint8_t* opcode = &memory[pc];
-	printf("%x, %x, %x, %x, %x, %x\n ", a, get_bc(), get_de(), get_hl(), pc, sp);
+	printf("a = %x, b = %x, c = %x, d = %x, pc = %x, sp = %x\n ", a, b, c, d, pc, sp);
 	switch (*opcode)
 	{
 	case NOP:
@@ -956,7 +1070,7 @@ void CPU8080::debug(const uint32_t pc)
 	case 0x05:
 		printf("DCR\tB");
 		break;
-	case 0x06:
+	case MVI_B_D8:
 		printf("MVI\tB, #$0x%02x", opcode[1]);
 		break;
 	case 0x07:
@@ -1722,7 +1836,31 @@ void Compiler::WriteToFile(const uint8_t* code, const char* name, const size_t s
 
 void Compiler::ProcessInstruction(uint8_t* code, const std::vector<std::string>& opcodes, std::map<std::string, uint32_t>& labels, uint32_t& pc)
 {
-	if (opcodes[0] == "mvi")
+	if (opcodes[0] == "cpi" || opcodes[0] == "cmp")
+	{
+		CMP(code, opcodes, pc);
+	}
+	else if (opcodes[0] == "add")
+	{
+		ADD(code, opcodes, pc);
+	}
+	else if (opcodes[0] == "lhld")
+	{
+		LHLD(code, opcodes, pc);
+	}
+	else if (opcodes[0] == "xra")
+	{
+		XRA(code, opcodes, pc);
+	}
+	else if (opcodes[0] == "lxi")
+	{
+		LXI(code, opcodes, pc);
+	}
+	else if (opcodes[0] == "sta")
+	{
+		STA(code, opcodes, pc);
+	}
+	else if (opcodes[0] == "mvi")
 	{
 		MVI(code, opcodes, pc);
 	}
@@ -1733,6 +1871,22 @@ void Compiler::ProcessInstruction(uint8_t* code, const std::vector<std::string>&
 	else if (opcodes[0] == "jnz")
 	{
 		JMP(JNZ_addr ,code, opcodes, labels, pc);
+	}
+	else if (opcodes[0] == "jm")
+	{
+		JMP(JM_addr, code, opcodes, labels, pc);
+	}
+	else if (opcodes[0] == "jp")
+	{
+		JMP(JP_addr, code, opcodes, labels, pc);
+	}
+	else if (opcodes[0] == "jc")
+	{
+		JMP(JC_addr, code, opcodes, labels, pc);
+	}
+	else if (opcodes[0] == "jnc")
+	{
+		JMP(JNC_addr, code, opcodes, labels, pc);
 	}
 	else if (opcodes[0] == "jmp")
 	{
@@ -1757,6 +1911,10 @@ void Compiler::ProcessInstruction(uint8_t* code, const std::vector<std::string>&
 	else if (opcodes[0] == "hlt")
 	{
 		HALT(code, opcodes, pc);
+	}else if (opcodes[0] == "nop")
+	{
+		code[pc] = NOP;
+		pc++;
 	}
 }
 
@@ -1780,6 +1938,13 @@ void Compiler::MVI(uint8_t* code, const std::vector<std::string>& opcodes, uint3
 	{
 		auto val = (uint8_t)strtol(opcodes[2].c_str(), NULL, 16);
 		code[pc + 0] = MVI_C_D8;
+		code[pc + 1] = val;
+		pc += 2;
+	}
+	else if (opcodes[1] == "d")
+	{
+		auto val = (uint8_t)strtol(opcodes[2].c_str(), NULL, 16);
+		code[pc + 0] = MVI_D_D8;
 		code[pc + 1] = val;
 		pc += 2;
 	}
@@ -1837,21 +2002,21 @@ void Compiler::MOV(uint8_t* code, const std::vector<std::string>& opcodes, uint3
 	}
 	else if (opcodes[1] == "b")
 	{
-		if (opcodes[1] == "a")
+		if (opcodes[2] == "a")
 			code[pc + 0] = MOV_B_A;
-		else if (opcodes[1] == "b")
+		else if (opcodes[2] == "b")
 			code[pc + 0] = MOV_B_B;
-		else if (opcodes[1] == "d")
+		else if (opcodes[2] == "d")
 			code[pc + 0] = MOV_B_D;
-		else if (opcodes[1] == "c")
+		else if (opcodes[2] == "c")
 			code[pc + 0] = MOV_B_C;
-		else if (opcodes[1] == "e")
+		else if (opcodes[2] == "e")
 			code[pc + 0] = MOV_B_E;
-		else if (opcodes[1] == "h")
+		else if (opcodes[2] == "h")
 			code[pc + 0] = MOV_B_H;
-		else if (opcodes[1] == "l")
+		else if (opcodes[2] == "l")
 			code[pc + 0] = MOV_B_L;
-		else if (opcodes[1] == "m")
+		else if (opcodes[2] == "m")
 			code[pc + 0] = MOV_B_M;
 		pc += 1;
 	}
@@ -1859,117 +2024,117 @@ void Compiler::MOV(uint8_t* code, const std::vector<std::string>& opcodes, uint3
 	{
 		if (opcodes[1] == "a")
 			code[pc + 0] = MOV_C_A;
-		else if (opcodes[1] == "b")
+		else if (opcodes[2] == "b")
 			code[pc + 0] = MOV_C_B;
-		else if (opcodes[1] == "d")
+		else if (opcodes[2] == "d")
 			code[pc + 0] = MOV_C_D;
-		else if (opcodes[1] == "c")
+		else if (opcodes[2] == "c")
 			code[pc + 0] = MOV_C_C;
-		else if (opcodes[1] == "e")
+		else if (opcodes[2] == "e")
 			code[pc + 0] = MOV_C_E;
-		else if (opcodes[1] == "h")
+		else if (opcodes[2] == "h")
 			code[pc + 0] = MOV_C_H;
-		else if (opcodes[1] == "l")
+		else if (opcodes[2] == "l")
 			code[pc + 0] = MOV_C_L;
-		else if (opcodes[1] == "m")
+		else if (opcodes[2] == "m")
 			code[pc + 0] = MOV_C_M;
 		pc += 1;
 	}
 	else if (opcodes[1] == "d")
 	{
-		if (opcodes[1] == "a")
+		if (opcodes[2] == "a")
 			code[pc + 0] = MOV_D_A;
-		else if (opcodes[1] == "b")
+		else if (opcodes[2] == "b")
 			code[pc + 0] = MOV_D_B;
-		else if (opcodes[1] == "d")
+		else if (opcodes[2] == "d")
 			code[pc + 0] = MOV_D_D;
-		else if (opcodes[1] == "c")
+		else if (opcodes[2] == "c")
 			code[pc + 0] = MOV_D_C;
-		else if (opcodes[1] == "e")
+		else if (opcodes[2] == "e")
 			code[pc + 0] = MOV_D_E;
-		else if (opcodes[1] == "h")
+		else if (opcodes[2] == "h")
 			code[pc + 0] = MOV_D_H;
-		else if (opcodes[1] == "l")
+		else if (opcodes[2] == "l")
 			code[pc + 0] = MOV_D_L;
-		else if (opcodes[1] == "m")
+		else if (opcodes[2] == "m")
 			code[pc + 0] = MOV_D_M;
 		pc += 1;
 	}
 	else if (opcodes[1] == "e")
 	{
-		if (opcodes[1] == "a")
+		if (opcodes[2] == "a")
 			code[pc + 0] = MOV_E_A;
-		else if (opcodes[1] == "b")
+		else if (opcodes[2] == "b")
 			code[pc + 0] = MOV_E_B;
-		else if (opcodes[1] == "d")
+		else if (opcodes[2] == "d")
 			code[pc + 0] = MOV_E_D;
-		else if (opcodes[1] == "c")
+		else if (opcodes[2] == "c")
 			code[pc + 0] = MOV_E_C;
-		else if (opcodes[1] == "e")
+		else if (opcodes[2] == "e")
 			code[pc + 0] = MOV_E_E;
-		else if (opcodes[1] == "h")
+		else if (opcodes[2] == "h")
 			code[pc + 0] = MOV_E_H;
-		else if (opcodes[1] == "l")
+		else if (opcodes[2] == "l")
 			code[pc + 0] = MOV_E_L;
-		else if (opcodes[1] == "m")
+		else if (opcodes[2] == "m")
 			code[pc + 0] = MOV_E_M;
 		pc += 1;
 	}
 	else if (opcodes[1] == "h")
 	{
-		if (opcodes[1] == "a")
+		if (opcodes[2] == "a")
 			code[pc + 0] = MOV_H_A;
-		else if (opcodes[1] == "b")
+		else if (opcodes[2] == "b")
 			code[pc + 0] = MOV_H_B;
-		else if (opcodes[1] == "d")
+		else if (opcodes[2] == "d")
 			code[pc + 0] = MOV_H_D;
-		else if (opcodes[1] == "c")
+		else if (opcodes[2] == "c")
 			code[pc + 0] = MOV_H_C;
-		else if (opcodes[1] == "e")
+		else if (opcodes[2] == "e")
 			code[pc + 0] = MOV_H_E;
-		else if (opcodes[1] == "h")
+		else if (opcodes[2] == "h")
 			code[pc + 0] = MOV_H_H;
-		else if (opcodes[1] == "l")
+		else if (opcodes[2] == "l")
 			code[pc + 0] = MOV_H_L;
-		else if (opcodes[1] == "m")
+		else if (opcodes[2] == "m")
 			code[pc + 0] = MOV_H_M;
 		pc += 1;
 	}
 	else if (opcodes[1] == "l")
 	{
-		if (opcodes[1] == "a")
+		if (opcodes[2] == "a")
 			code[pc + 0] = MOV_L_A;
-		else if (opcodes[1] == "b")
+		else if (opcodes[2] == "b")
 			code[pc + 0] = MOV_L_B;
-		else if (opcodes[1] == "d")
+		else if (opcodes[2] == "d")
 			code[pc + 0] = MOV_L_D;
-		else if (opcodes[1] == "c")
+		else if (opcodes[2] == "c")
 			code[pc + 0] = MOV_L_C;
-		else if (opcodes[1] == "e")
+		else if (opcodes[2] == "e")
 			code[pc + 0] = MOV_L_E;
-		else if (opcodes[1] == "h")
+		else if (opcodes[2] == "h")
 			code[pc + 0] = MOV_L_H;
-		else if (opcodes[1] == "l")
+		else if (opcodes[2] == "l")
 			code[pc + 0] = MOV_L_L;
-		else if (opcodes[1] == "m")
+		else if (opcodes[2] == "m")
 			code[pc + 0] = MOV_L_M;
 		pc += 1;
 	}
 	else if (opcodes[1] == "m")
 		{
-		if (opcodes[1] == "a")
+		if (opcodes[2] == "a")
 			code[pc + 0] = MOV_M_A;
-		else if (opcodes[1] == "b")
+		else if (opcodes[2] == "b")
 			code[pc + 0] = MOV_M_B;
-		else if (opcodes[1] == "d")
+		else if (opcodes[2] == "d")
 			code[pc + 0] = MOV_M_D;
-		else if (opcodes[1] == "c")
+		else if (opcodes[2] == "c")
 			code[pc + 0] = MOV_M_C;
-		else if (opcodes[1] == "e")
+		else if (opcodes[2] == "e")
 			code[pc + 0] = MOV_M_E;
-		else if (opcodes[1] == "h")
+		else if (opcodes[2] == "h")
 			code[pc + 0] = MOV_M_H;
-		else if (opcodes[1] == "l")
+		else if (opcodes[2] == "l")
 			code[pc + 0] = MOV_M_L;
 		pc += 1;
 	}

@@ -35,4 +35,10 @@ private:
 	void CALL(uint8_t* code, const std::vector<std::string>& opcodes, std::map<std::string, uint32_t>& labels, uint32_t& pc);
 	void RETURN(uint8_t* code, const std::vector<std::string>& opcodes, uint32_t& pc);
 	void LowerCase(char* p);
+	void STA(uint8_t* code, const std::vector<std::string>& opcodes, uint32_t& pc);
+	void LXI(uint8_t* code, const std::vector<std::string>& opcodes, uint32_t& pc);
+	void XRA(uint8_t* code, const std::vector<std::string>& opcodes, uint32_t& pc);
+	void LHLD(uint8_t* code, const std::vector<std::string>& opcodes, uint32_t& pc);
+	void ADD(uint8_t* code, const std::vector<std::string>& opcodes, uint32_t& pc);
+	void CMP(uint8_t* code, const std::vector<std::string>& opcodes, uint32_t& pc);
 };
